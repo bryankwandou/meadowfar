@@ -42,12 +42,33 @@ export default function Game() {
   const [progress, setProgress] = useState("");
   const [score, setScore] = useState(0);
   const [toast, setToast] = useState("");
+  const [best, setBest] = useState(0);
+  const [arrow, setArrow] = useState(0);
   const joyRef = useRef({ x: 0, y: 0, active: false });
+  const jumpRef = useRef(false);
 
   useEffect(() => {
     if (!hero || !mountRef.current) return;
     const mount = mountRef.current;
     const rand = mulberry32(20260710);
+    setBest(Number(localStorage.getItem("meadowfar-best") || 0));
+
+    // soft collect chime, generated in code (no audio files)
+    let audioCtx: AudioContext | null = null;
+    function chime(freq: number) {
+      try {
+        audioCtx = audioCtx || new AudioContext();
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = "sine";
+        o.frequency.value = freq;
+        g.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+        o.connect(g).connect(audioCtx.destination);
+        o.start();
+        o.stop(audioCtx.currentTime + 0.5);
+      } catch {}
+    }
 
     // ---------- renderer / scene ----------
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -78,6 +99,64 @@ export default function Game() {
     sun.shadow.camera.bottom = -80;
     scene.add(sun);
     scene.add(new THREE.HemisphereLight(0xcfeaff, 0x7cc26a, 1.1));
+
+    // drifting clouds
+    const cloudMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff, transparent: true, opacity: 0.85,
+    });
+    const clouds: THREE.Group[] = [];
+    for (let i = 0; i < 10; i++) {
+      const c = new THREE.Group();
+      for (let j = 0; j < 4; j++) {
+        const puff = new THREE.Mesh(
+          new THREE.SphereGeometry(2.5 + rand() * 2, 7, 7),
+          cloudMat
+        );
+        puff.position.set((j - 1.5) * 3, rand() * 1.2, rand() * 2);
+        c.add(puff);
+      }
+      c.position.set((rand() - 0.5) * 220, 32 + rand() * 12, (rand() - 0.5) * 220);
+      scene.add(c);
+      clouds.push(c);
+    }
+
+    // butterflies
+    const butterflies: { g: THREE.Group; w1: THREE.Mesh; w2: THREE.Mesh; a: number }[] = [];
+    const wingGeo = new THREE.PlaneGeometry(0.4, 0.3);
+    for (let i = 0; i < 12; i++) {
+      const g = new THREE.Group();
+      const wm = new THREE.MeshBasicMaterial({
+        color: [0xffa1c6, 0xa1d9ff, 0xfff3a1][i % 3], side: THREE.DoubleSide,
+      });
+      const w1 = new THREE.Mesh(wingGeo, wm);
+      const w2 = new THREE.Mesh(wingGeo, wm);
+      w1.position.x = -0.2;
+      w2.position.x = 0.2;
+      g.add(w1, w2);
+      g.position.set((rand() - 0.5) * 60, 3 + rand() * 2, (rand() - 0.5) * 60);
+      scene.add(g);
+      butterflies.push({ g, w1, w2, a: rand() * Math.PI * 2 });
+    }
+
+    // wandering bunnies
+    const bunnies: { g: THREE.Group; a: number; s: number }[] = [];
+    const bunnyBody = new THREE.MeshStandardMaterial({ color: 0xf5f0e8 });
+    for (let i = 0; i < 5; i++) {
+      const g = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.45, 8, 8), bunnyBody);
+      body.position.y = 0.4;
+      const headB = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), bunnyBody);
+      headB.position.set(0, 0.85, 0.3);
+      const earGeo = new THREE.CapsuleGeometry(0.07, 0.35, 2, 6);
+      const e1 = new THREE.Mesh(earGeo, bunnyBody);
+      const e2 = new THREE.Mesh(earGeo, bunnyBody);
+      e1.position.set(-0.12, 1.25, 0.25);
+      e2.position.set(0.12, 1.25, 0.25);
+      g.add(body, headB, e1, e2);
+      g.position.set((rand() - 0.5) * 70, 0, (rand() - 0.5) * 70);
+      scene.add(g);
+      bunnies.push({ g, a: rand() * Math.PI * 2, s: 1.2 + rand() * 1.5 });
+    }
 
     // ---------- character (built from boxes, zero external assets) ----------
     const player = new THREE.Group();
@@ -237,6 +316,8 @@ export default function Game() {
     // ---------- main loop ----------
     let yaw = 0;
     let walk = 0;
+    let jumpY = 0;
+    let vy = 0;
     let last = performance.now();
     let raf = 0;
     let localScore = 0;
@@ -275,7 +356,78 @@ export default function Game() {
         legR.rotation.x *= 0.85;
       }
       player.rotation.y += (yaw - player.rotation.y) * 0.2;
-      player.position.y = terrainHeight(player.position.x, player.position.z);
+
+      // jump
+      if ((keys[" "] || jumpRef.current) && jumpY === 0) {
+        vy = 9;
+        chime(660);
+      }
+      jumpRef.current = false;
+      if (jumpY > 0 || vy > 0) {
+        vy -= 25 * dt;
+        jumpY = Math.max(0, jumpY + vy * dt);
+        if (jumpY === 0) vy = 0;
+      }
+      player.position.y =
+        terrainHeight(player.position.x, player.position.z) + jumpY;
+
+      // ambient life
+      clouds.forEach((c, i) => {
+        c.position.x += dt * (1.5 + (i % 3) * 0.5);
+        if (c.position.x - player.position.x > 130) c.position.x -= 260;
+        c.position.z +=
+          (player.position.z - c.position.z > 130 ? 260 : 0) -
+          (c.position.z - player.position.z > 130 ? 260 : 0);
+      });
+      butterflies.forEach((b, i) => {
+        b.a += dt * 0.6;
+        b.g.position.x += Math.cos(b.a) * dt * 3;
+        b.g.position.z += Math.sin(b.a) * dt * 3;
+        const gy = terrainHeight(b.g.position.x, b.g.position.z);
+        b.g.position.y = gy + 2.5 + Math.sin(now / 250 + i) * 0.5;
+        const flap = Math.sin(now / 60 + i) * 0.9;
+        b.w1.rotation.y = flap;
+        b.w2.rotation.y = -flap;
+        if (b.g.position.distanceTo(player.position) > 90)
+          b.g.position.set(
+            player.position.x + (hash2(i, now | 0) - 0.5) * 50,
+            0,
+            player.position.z + (hash2(now | 0, i) - 0.5) * 50
+          );
+      });
+      bunnies.forEach((b, i) => {
+        b.a += (hash2(i, Math.floor(now / 2000)) - 0.5) * dt * 3;
+        b.g.position.x += Math.sin(b.a) * b.s * dt;
+        b.g.position.z += Math.cos(b.a) * b.s * dt;
+        b.g.rotation.y = b.a;
+        const gy = terrainHeight(b.g.position.x, b.g.position.z);
+        b.g.position.y = gy + Math.abs(Math.sin(now / 220 + i)) * 0.35;
+        if (b.g.position.distanceTo(player.position) > 90)
+          b.g.position.set(
+            player.position.x + (hash2(i * 3, i) - 0.5) * 40,
+            0,
+            player.position.z + (hash2(i, i * 7) - 0.5) * 40
+          );
+      });
+
+      // arrow toward nearest quest item
+      if (items.length) {
+        let nearest = items[0];
+        let nd = Infinity;
+        for (const m of items) {
+          const d = m.position.distanceTo(player.position);
+          if (d < nd) {
+            nd = d;
+            nearest = m;
+          }
+        }
+        setArrow(
+          Math.atan2(
+            nearest.position.x - player.position.x,
+            -(nearest.position.z - player.position.z)
+          )
+        );
+      }
 
       // camera follow
       const camTarget = new THREE.Vector3(
@@ -321,7 +473,13 @@ export default function Game() {
           items.splice(i, 1);
           got++;
           localScore += 10;
+          chime(880 + got * 40);
           setScore(localScore);
+          const prevBest = Number(localStorage.getItem("meadowfar-best") || 0);
+          if (localScore > prevBest) {
+            localStorage.setItem("meadowfar-best", String(localScore));
+            setBest(localScore);
+          }
           setProgress(`${got} / ${need}`);
           if (got >= need) {
             setToast("Misi selesai. Petualangan baru dimulai...");
@@ -396,6 +554,13 @@ export default function Game() {
         <p className="text-sm font-semibold">{quest}</p>
         <p className="text-xs opacity-80">Terkumpul: {progress}</p>
         <p className="mt-1 text-xs opacity-80">Skor: {score}</p>
+        <p className="text-xs opacity-80">Rekor: {best}</p>
+      </div>
+      <div
+        className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 rounded-full bg-black/45 p-3 text-2xl text-amber-300 backdrop-blur"
+        style={{ transform: `translateX(-50%) rotate(${arrow}rad)` }}
+      >
+        &uarr;
       </div>
       <div className="pointer-events-none absolute right-4 top-4 rounded-xl bg-black/45 px-4 py-2 text-xs text-white backdrop-blur">
         WASD / panah untuk berjalan. Di layar sentuh, pakai tombol bulat kiri
@@ -412,6 +577,12 @@ export default function Game() {
         onTouchEnd={joyEnd}
         className="absolute bottom-8 left-8 h-28 w-28 rounded-full border-4 border-white/50 bg-white/20 backdrop-blur md:hidden"
       />
+      <button
+        onTouchStart={() => (jumpRef.current = true)}
+        className="absolute bottom-10 right-8 h-20 w-20 rounded-full border-4 border-white/50 bg-amber-400/70 text-sm font-bold text-amber-950 backdrop-blur md:hidden"
+      >
+        Lompat
+      </button>
     </div>
   );
 }
