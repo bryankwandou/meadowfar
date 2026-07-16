@@ -2,6 +2,19 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import {
+  HEROES,
+  SKILLS,
+  TOOLS,
+  ACHIEVEMENTS,
+  levelFromXp,
+  xpForLevel,
+  defaultProgress,
+  sanitizeProgress,
+  applyUnlocks,
+  type HeroId,
+  type Progress,
+} from "@/lib/progression";
 
 // ---------- deterministic pseudo-random (seeded, no Math.random at module init) ----------
 function mulberry32(seed: number) {
@@ -25,8 +38,6 @@ function terrainHeight(x: number, z: number) {
   );
 }
 
-type Hero = "girl" | "boy";
-
 const QUEST_NOUNS = [
   ["bintang emas", 0xffd447],
   ["buah beri merah", 0xe14b4b],
@@ -35,23 +46,142 @@ const QUEST_NOUNS = [
   ["kunang cahaya", 0xb6ff6b],
 ] as const;
 
+const GUEST_KEY = "meadowfar-progress";
+
 export default function Game() {
   const mountRef = useRef<HTMLDivElement>(null);
-  const [hero, setHero] = useState<Hero | null>(null);
+  const [hero, setHero] = useState<HeroId | null>(null);
   const [quest, setQuest] = useState("");
-  const [progress, setProgress] = useState("");
+  const [progressText, setProgressText] = useState("");
   const [score, setScore] = useState(0);
   const [toast, setToast] = useState("");
-  const [best, setBest] = useState(0);
   const [arrow, setArrow] = useState(0);
+  const [user, setUser] = useState<string | null>(null);
+  const [prog, setProg] = useState<Progress | null>(null);
+  const [hudLevel, setHudLevel] = useState(1);
+  const [hudXp, setHudXp] = useState(0);
+  const [showBook, setShowBook] = useState(false);
   const joyRef = useRef({ x: 0, y: 0, active: false });
   const jumpRef = useRef(false);
+  const progRef = useRef<Progress>(defaultProgress());
+  const userRef = useRef<string | null>(null);
+  const toastQueue = useRef<string[]>([]);
+  const toastBusy = useRef(false);
+
+  // ---------- load account + saved progress ----------
+  useEffect(() => {
+    (async () => {
+      try {
+        const me = await fetch("/api/auth/me").then((r) => r.json());
+        if (me.user) {
+          userRef.current = me.user.username;
+          setUser(me.user.username);
+          const p = await fetch("/api/progress").then((r) => r.json());
+          const clean = sanitizeProgress(p.progress);
+          progRef.current = clean;
+          setProg(clean);
+          setHudLevel(levelFromXp(clean.xp));
+          setHudXp(clean.xp);
+          return;
+        }
+      } catch {}
+      // guest: local save only
+      let clean = defaultProgress();
+      try {
+        clean = sanitizeProgress(JSON.parse(localStorage.getItem(GUEST_KEY) || "null"));
+      } catch {}
+      progRef.current = clean;
+      setProg(clean);
+      setHudLevel(levelFromXp(clean.xp));
+      setHudXp(clean.xp);
+    })();
+  }, []);
+
+  function pushToast(msg: string) {
+    toastQueue.current.push(msg);
+    if (toastBusy.current) return;
+    toastBusy.current = true;
+    const next = () => {
+      const m = toastQueue.current.shift();
+      if (!m) {
+        toastBusy.current = false;
+        setToast("");
+        return;
+      }
+      setToast(m);
+      setTimeout(next, 2300);
+    };
+    next();
+  }
+
+  async function save() {
+    const p = progRef.current;
+    if (userRef.current) {
+      try {
+        await fetch("/api/progress", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(p),
+        });
+      } catch {}
+    } else {
+      try {
+        localStorage.setItem(GUEST_KEY, JSON.stringify(p));
+      } catch {}
+    }
+  }
 
   useEffect(() => {
     if (!hero || !mountRef.current) return;
     const mount = mountRef.current;
     const rand = mulberry32(20260710);
-    setBest(Number(localStorage.getItem("meadowfar-best") || 0));
+    const heroDef = HEROES.find((h) => h.id === hero)!;
+    progRef.current.lastHero = hero;
+
+    const has = (skill: string) => progRef.current.skills.includes(skill);
+    const toolBonus = () =>
+      Math.max(
+        0,
+        ...TOOLS.filter((t) => progRef.current.tools.includes(t.id)).map((t) => t.bonus)
+      );
+
+    function award(id: string) {
+      const p = progRef.current;
+      if (p.achievements.includes(id)) return;
+      const def = ACHIEVEMENTS.find((a) => a.id === id);
+      if (!def) return;
+      p.achievements = [...p.achievements, id];
+      pushToast(`Prestasi terbuka: ${def.nama}`);
+    }
+
+    function gainXp(amount: number) {
+      const p = progRef.current;
+      const before = levelFromXp(p.xp);
+      p.xp += amount;
+      const after = levelFromXp(p.xp);
+      setHudXp(p.xp);
+      if (after > before) {
+        const upgraded = applyUnlocks(p);
+        const newHeroes = upgraded.heroes.filter((h) => !p.heroes.includes(h));
+        const newSkills = upgraded.skills.filter((s) => !p.skills.includes(s));
+        const newTools = upgraded.tools.filter((t) => !p.tools.includes(t));
+        Object.assign(p, upgraded);
+        setHudLevel(after);
+        pushToast(`Naik ke level ${after}!`);
+        newHeroes.forEach((h) =>
+          pushToast(`Tokoh baru: ${HEROES.find((x) => x.id === h)?.nama}`)
+        );
+        newSkills.forEach((s) =>
+          pushToast(`Keahlian baru: ${SKILLS.find((x) => x.id === s)?.nama}`)
+        );
+        newTools.forEach((t) =>
+          pushToast(`Perlengkapan baru: ${TOOLS.find((x) => x.id === t)?.nama}`)
+        );
+        if (after >= 5) award("level-5");
+        if (after >= 10) award("level-10");
+        setProg({ ...p });
+      }
+    }
 
     // soft collect chime, generated in code (no audio files)
     let audioCtx: AudioContext | null = null;
@@ -160,13 +290,9 @@ export default function Game() {
 
     // ---------- character (built from boxes, zero external assets) ----------
     const player = new THREE.Group();
-    const skin = new THREE.MeshStandardMaterial({ color: 0xf1c6a0 });
-    const cloth = new THREE.MeshStandardMaterial({
-      color: hero === "girl" ? 0xe0559b : 0x3f7ede,
-    });
-    const hairMat = new THREE.MeshStandardMaterial({
-      color: hero === "girl" ? 0x6b3f22 : 0x2b2b2b,
-    });
+    const skin = new THREE.MeshStandardMaterial({ color: heroDef.skin });
+    const cloth = new THREE.MeshStandardMaterial({ color: heroDef.cloth });
+    const hairMat = new THREE.MeshStandardMaterial({ color: heroDef.hair });
     const mk = (
       w: number, h: number, d: number,
       m: THREE.Material, x: number, y: number, z: number
@@ -178,11 +304,43 @@ export default function Game() {
       return b;
     };
     mk(0.9, 1.1, 0.55, cloth, 0, 1.5, 0); // torso
-    const head = mk(0.72, 0.72, 0.72, skin, 0, 2.5, 0);
+    mk(0.72, 0.72, 0.72, skin, 0, 2.5, 0); // head
     mk(0.8, 0.3, 0.8, hairMat, 0, 2.9, 0); // hair top
     if (hero === "girl") {
       mk(0.8, 0.9, 0.2, hairMat, 0, 2.45, -0.34); // long hair back
       mk(1.15, 0.5, 0.75, cloth, 0, 0.95, 0); // skirt
+    }
+    if (hero === "knight") {
+      const helm = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.42, 0.46, 0.5, 8),
+        new THREE.MeshStandardMaterial({ color: 0xd7dde6, metalness: 0.4 })
+      );
+      helm.position.set(0, 3.0, 0);
+      player.add(helm);
+    }
+    if (hero === "wizard") {
+      const hat = new THREE.Mesh(
+        new THREE.ConeGeometry(0.5, 1.1, 8),
+        new THREE.MeshStandardMaterial({ color: 0x5a35a8 })
+      );
+      hat.position.set(0, 3.4, 0);
+      player.add(hat);
+    }
+    if (hero === "explorer") {
+      const brim = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.65, 0.65, 0.08, 10),
+        new THREE.MeshStandardMaterial({ color: 0x8a6a3b })
+      );
+      brim.position.set(0, 2.92, 0);
+      player.add(brim);
+    }
+    if (hero === "robot") {
+      const antenna = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.04, 0.04, 0.5, 6),
+        new THREE.MeshStandardMaterial({ color: 0xff5a5a })
+      );
+      antenna.position.set(0, 3.3, 0);
+      player.add(antenna);
     }
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
     mk(0.09, 0.12, 0.05, eyeMat, -0.16, 2.55, 0.37);
@@ -191,7 +349,6 @@ export default function Game() {
     const armR = mk(0.26, 0.9, 0.26, skin, 0.6, 1.5, 0);
     const legL = mk(0.3, 0.95, 0.3, skin, -0.24, 0.55, 0);
     const legR = mk(0.3, 0.95, 0.3, skin, 0.24, 0.55, 0);
-    void head;
     scene.add(player);
     player.position.set(0, terrainHeight(0, 0), 0);
 
@@ -295,7 +452,7 @@ export default function Game() {
         items.push(m);
       }
       setQuest(`Misi ${questIdx}: kumpulkan ${need} ${noun}`);
-      setProgress(`0 / ${need}`);
+      setProgressText(`0 / ${need}`);
     }
     newQuest();
 
@@ -313,11 +470,19 @@ export default function Game() {
     };
     window.addEventListener("resize", onResize);
 
+    // periodic cloud save
+    const saveTimer = setInterval(save, 15000);
+    const onLeave = () => save();
+    window.addEventListener("beforeunload", onLeave);
+
     // ---------- main loop ----------
     let yaw = 0;
     let walk = 0;
     let jumpY = 0;
     let vy = 0;
+    let airborne = false;
+    let usedDouble = false;
+    let jumpHeld = false;
     let last = performance.now();
     let raf = 0;
     let localScore = 0;
@@ -326,6 +491,7 @@ export default function Game() {
       raf = requestAnimationFrame(frame);
       const dt = Math.min((now - last) / 1000, 0.05);
       last = now;
+      const p = progRef.current;
 
       let ix = 0, iz = 0;
       if (keys["w"] || keys["arrowup"]) iz -= 1;
@@ -338,13 +504,17 @@ export default function Game() {
       }
       const len = Math.hypot(ix, iz);
       if (len > 0.15) {
-        const speed = 10;
+        const sprinting = has("sprint") && (keys["shift"] || len > 0.95);
+        const speed = sprinting ? 16 : 10;
         const dx = (ix / len) * speed * dt;
         const dz = (iz / len) * speed * dt;
         player.position.x += dx;
         player.position.z += dz;
+        p.distance += Math.hypot(dx, dz);
+        if (p.distance >= 1000) award("walk-1000");
+        if (p.distance >= 10000) award("walk-10000");
         yaw = Math.atan2(dx, dz);
-        walk += dt * 10;
+        walk += dt * (sprinting ? 14 : 10);
         armL.rotation.x = Math.sin(walk) * 0.8;
         armR.rotation.x = -Math.sin(walk) * 0.8;
         legL.rotation.x = -Math.sin(walk) * 0.8;
@@ -357,16 +527,34 @@ export default function Game() {
       }
       player.rotation.y += (yaw - player.rotation.y) * 0.2;
 
-      // jump
-      if ((keys[" "] || jumpRef.current) && jumpY === 0) {
-        vy = 9;
-        chime(660);
+      // jump: single, plus double jump and glide when unlocked
+      const jumpPressed = keys[" "] || jumpRef.current;
+      const jumpPower = has("rocket") ? 12 : 9;
+      if (jumpPressed && !jumpHeld) {
+        if (!airborne) {
+          vy = jumpPower;
+          airborne = true;
+          usedDouble = false;
+          p.jumps++;
+          if (p.jumps >= 100) award("jump-100");
+          chime(660);
+        } else if (has("doublejump") && !usedDouble) {
+          vy = jumpPower * 0.85;
+          usedDouble = true;
+          p.jumps++;
+          chime(740);
+        }
       }
+      jumpHeld = jumpPressed;
       jumpRef.current = false;
-      if (jumpY > 0 || vy > 0) {
+      if (airborne) {
         vy -= 25 * dt;
+        if (has("glide") && jumpPressed && vy < -3) vy = -3;
         jumpY = Math.max(0, jumpY + vy * dt);
-        if (jumpY === 0) vy = 0;
+        if (jumpY === 0 && vy < 0) {
+          vy = 0;
+          airborne = false;
+        }
       }
       player.position.y =
         terrainHeight(player.position.x, player.position.z) + jumpY;
@@ -461,29 +649,51 @@ export default function Game() {
         }
       });
 
-      // collectibles
+      // collectibles (magnet skill pulls nearby items in)
       for (let i = items.length - 1; i >= 0; i--) {
         const m = items[i];
         m.rotation.y += dt * 2;
-        m.position.y =
-          terrainHeight(m.position.x, m.position.z) +
-          1.4 + Math.sin(now / 300 + i) * 0.25;
-        if (m.position.distanceTo(player.position) < 2.2) {
+        const dist = m.position.distanceTo(player.position);
+        if (has("magnet") && dist < 9 && dist > 2) {
+          m.position.lerp(
+            new THREE.Vector3(
+              player.position.x,
+              player.position.y + 1.2,
+              player.position.z
+            ),
+            dt * 3
+          );
+        } else {
+          m.position.y =
+            terrainHeight(m.position.x, m.position.z) +
+            1.4 + Math.sin(now / 300 + i) * 0.25;
+        }
+        if (dist < 2.2) {
           scene.remove(m);
           items.splice(i, 1);
           got++;
-          localScore += 10;
+          localScore += 10 + toolBonus();
+          p.itemsCollected++;
+          gainXp(10);
+          award("first-item");
+          if (p.itemsCollected >= 25) award("items-25");
+          if (p.itemsCollected >= 100) award("items-100");
+          if (p.itemsCollected >= 500) award("items-500");
           chime(880 + got * 40);
           setScore(localScore);
-          const prevBest = Number(localStorage.getItem("meadowfar-best") || 0);
-          if (localScore > prevBest) {
-            localStorage.setItem("meadowfar-best", String(localScore));
-            setBest(localScore);
+          if (localScore > p.bestScore) {
+            p.bestScore = localScore;
+            setProg({ ...p });
           }
-          setProgress(`${got} / ${need}`);
+          setProgressText(`${got} / ${need}`);
           if (got >= need) {
-            setToast("Misi selesai. Petualangan baru dimulai...");
-            setTimeout(() => setToast(""), 2500);
+            p.missionsDone++;
+            gainXp(30);
+            award("quest-1");
+            if (p.missionsDone >= 10) award("quest-10");
+            if (p.missionsDone >= 50) award("quest-50");
+            pushToast("Misi selesai! Petualangan baru dimulai...");
+            save();
             newQuest();
           }
         }
@@ -495,12 +705,16 @@ export default function Game() {
 
     return () => {
       cancelAnimationFrame(raf);
+      clearInterval(saveTimer);
+      window.removeEventListener("beforeunload", onLeave);
       window.removeEventListener("keydown", kd);
       window.removeEventListener("keyup", ku);
       window.removeEventListener("resize", onResize);
+      save();
       renderer.dispose();
       mount.removeChild(renderer.domElement);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hero]);
 
   // ---------- virtual joystick (touch) ----------
@@ -520,41 +734,90 @@ export default function Game() {
     joyRef.current = { x: 0, y: 0, active: false };
   };
 
-  if (!hero)
+  if (!prog)
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-gradient-to-b from-sky-300 to-emerald-200 px-6 text-center">
-        <h1 className="text-4xl font-bold text-emerald-900">
-          Pilih penjelajahmu
-        </h1>
-        <p className="max-w-md text-emerald-800">
-          Padang Meadowfar membentang tanpa ujung. Pilih satu tokoh, lalu
-          berjalanlah ke arah mana pun yang kamu suka.
-        </p>
-        <div className="flex gap-6">
-          <button
-            onClick={() => setHero("girl")}
-            className="rounded-2xl bg-pink-500 px-10 py-6 text-xl font-semibold text-white shadow-lg transition hover:scale-105 active:scale-95"
-          >
-            Anak perempuan
-          </button>
-          <button
-            onClick={() => setHero("boy")}
-            className="rounded-2xl bg-blue-500 px-10 py-6 text-xl font-semibold text-white shadow-lg transition hover:scale-105 active:scale-95"
-          >
-            Anak laki-laki
-          </button>
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-sky-300 to-emerald-200">
+        <p className="text-lg font-semibold text-emerald-900">Memuat petualanganmu...</p>
+      </div>
+    );
+
+  if (!hero) {
+    const level = levelFromXp(prog.xp);
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-gradient-to-b from-sky-300 to-emerald-200 px-6 py-12 text-center">
+        <div>
+          <h1 className="text-4xl font-bold text-emerald-900">Pilih penjelajahmu</h1>
+          <p className="mx-auto mt-3 max-w-md text-emerald-800">
+            {user
+              ? `Halo, ${user}! Level ${level} — progresmu tersimpan di akun.`
+              : "Bermain sebagai tamu. Progres tersimpan di perangkat ini saja — buat akun agar aman."}
+          </p>
+        </div>
+        <div className="grid max-w-3xl grid-cols-2 gap-4 md:grid-cols-3">
+          {HEROES.map((h) => {
+            const unlocked = prog.heroes.includes(h.id);
+            return (
+              <button
+                key={h.id}
+                disabled={!unlocked}
+                onClick={() => setHero(h.id)}
+                className={`relative rounded-2xl px-6 py-6 text-lg font-semibold shadow-lg transition ${
+                  unlocked
+                    ? "bg-white text-emerald-900 hover:scale-105 active:scale-95"
+                    : "cursor-not-allowed bg-white/40 text-emerald-900/40"
+                }`}
+              >
+                <span
+                  className="mx-auto mb-3 block h-10 w-10 rounded-full"
+                  style={{ background: `#${h.cloth.toString(16).padStart(6, "0")}` }}
+                />
+                {h.nama}
+                {!unlocked && (
+                  <span className="mt-1 block text-xs font-normal">
+                    Terbuka di level {h.level}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex gap-4 text-sm">
+          {!user && (
+            <>
+              <a href="/daftar" className="rounded-xl bg-emerald-700 px-5 py-2 font-semibold text-white">
+                Daftar
+              </a>
+              <a href="/masuk" className="rounded-xl border border-emerald-700 px-5 py-2 font-semibold text-emerald-800">
+                Masuk
+              </a>
+            </>
+          )}
         </div>
       </div>
     );
+  }
+
+  const level = hudLevel;
+  const xpNow = hudXp - xpForLevel(level);
+  const xpNext = xpForLevel(level + 1) - xpForLevel(level);
 
   return (
     <div className="relative h-screen w-screen overflow-hidden">
       <div ref={mountRef} className="h-full w-full" />
       <div className="pointer-events-none absolute left-4 top-4 rounded-xl bg-black/45 px-4 py-3 text-white backdrop-blur">
         <p className="text-sm font-semibold">{quest}</p>
-        <p className="text-xs opacity-80">Terkumpul: {progress}</p>
+        <p className="text-xs opacity-80">Terkumpul: {progressText}</p>
         <p className="mt-1 text-xs opacity-80">Skor: {score}</p>
-        <p className="text-xs opacity-80">Rekor: {best}</p>
+        <p className="text-xs opacity-80">Rekor: {prog.bestScore}</p>
+        <div className="mt-2">
+          <p className="text-xs font-semibold text-amber-300">Level {level}</p>
+          <div className="mt-1 h-1.5 w-36 overflow-hidden rounded-full bg-white/25">
+            <div
+              className="h-full rounded-full bg-amber-400 transition-all"
+              style={{ width: `${Math.min(100, (xpNow / xpNext) * 100)}%` }}
+            />
+          </div>
+        </div>
       </div>
       <div
         className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 rounded-full bg-black/45 p-3 text-2xl text-amber-300 backdrop-blur"
@@ -563,12 +826,68 @@ export default function Game() {
         &uarr;
       </div>
       <div className="pointer-events-none absolute right-4 top-4 rounded-xl bg-black/45 px-4 py-2 text-xs text-white backdrop-blur">
-        WASD / panah untuk berjalan. Di layar sentuh, pakai tombol bulat kiri
-        bawah.
+        WASD / panah jalan · Spasi lompat{" "}
+        {prog.skills.includes("sprint") && "· Shift lari"}
       </div>
+      <button
+        onClick={() => setShowBook(true)}
+        className="absolute right-4 top-16 rounded-xl bg-black/45 px-4 py-2 text-xs font-semibold text-amber-300 backdrop-blur"
+      >
+        Buku petualang
+      </button>
       {toast && (
         <div className="pointer-events-none absolute left-1/2 top-1/3 -translate-x-1/2 rounded-2xl bg-amber-400 px-8 py-4 text-lg font-bold text-amber-950 shadow-2xl">
           {toast}
+        </div>
+      )}
+      {showBook && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 p-4">
+          <div className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6 text-emerald-950 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">Buku petualang</h2>
+              <button
+                onClick={() => setShowBook(false)}
+                className="rounded-full bg-emerald-100 px-4 py-1 font-semibold"
+              >
+                Tutup
+              </button>
+            </div>
+            <p className="mt-2 text-sm text-emerald-700">
+              Level {level} · {prog.itemsCollected} item · {prog.missionsDone} misi ·{" "}
+              {Math.round(prog.distance)} m berjalan
+            </p>
+            <h3 className="mt-5 font-semibold">Keahlian</h3>
+            <ul className="mt-2 space-y-1 text-sm">
+              {SKILLS.map((s) => (
+                <li key={s.id} className={prog.skills.includes(s.id) ? "" : "opacity-40"}>
+                  {prog.skills.includes(s.id) ? "✓" : `Lv ${s.level}`} — {s.nama}:{" "}
+                  {s.keterangan}
+                </li>
+              ))}
+            </ul>
+            <h3 className="mt-5 font-semibold">Perlengkapan</h3>
+            <ul className="mt-2 space-y-1 text-sm">
+              {TOOLS.map((t) => (
+                <li key={t.id} className={prog.tools.includes(t.id) ? "" : "opacity-40"}>
+                  {prog.tools.includes(t.id) ? "✓" : `Lv ${t.level}`} — {t.nama}
+                  {t.bonus > 0 && ` (+${t.bonus} skor per item)`}
+                </li>
+              ))}
+            </ul>
+            <h3 className="mt-5 font-semibold">
+              Prestasi ({prog.achievements.length}/{ACHIEVEMENTS.length})
+            </h3>
+            <ul className="mt-2 space-y-1 text-sm">
+              {ACHIEVEMENTS.map((a) => (
+                <li
+                  key={a.id}
+                  className={prog.achievements.includes(a.id) ? "" : "opacity-40"}
+                >
+                  {prog.achievements.includes(a.id) ? "★" : "☆"} {a.nama} — {a.keterangan}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       )}
       <div
