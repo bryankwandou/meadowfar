@@ -111,6 +111,18 @@ export default function Home() {
             </span>
           </Link>
         </Reveal>
+        <Reveal delay={480}>
+          <p className="mt-6 text-sm text-emerald-800/70">
+            <Link href="/daftar" className="font-semibold underline">
+              Buat akun
+            </Link>{" "}
+            supaya level dan tokoh yang terbuka tersimpan, atau{" "}
+            <Link href="/masuk" className="font-semibold underline">
+              masuk
+            </Link>{" "}
+            kalau sudah punya.
+          </p>
+        </Reveal>
         <div className="absolute bottom-8 animate-bounce text-sm text-emerald-700/60">
           gulir ke bawah
         </div>
