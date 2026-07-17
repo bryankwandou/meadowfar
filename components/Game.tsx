@@ -6,6 +6,7 @@ import {
   HEROES,
   SKILLS,
   TOOLS,
+  PETS,
   ACHIEVEMENTS,
   levelFromXp,
   xpForLevel,
@@ -15,6 +16,8 @@ import {
   type HeroId,
   type Progress,
 } from "@/lib/progression";
+import { STORY } from "@/lib/story";
+import { UI, QUEST_NOUN_NAMES, detectLang, saveLang, pick, type Lang } from "@/lib/i18n";
 
 // ---------- deterministic pseudo-random (seeded, no Math.random at module init) ----------
 function mulberry32(seed: number) {
@@ -38,6 +41,18 @@ function terrainHeight(x: number, z: number) {
   );
 }
 
+type Biome = "grass" | "desert" | "snow";
+function biomeAt(x: number, z: number): Biome {
+  const n =
+    Math.sin(x * 0.004 + 7) * Math.cos(z * 0.0035 + 2) +
+    Math.sin((x + z) * 0.002);
+  if (n > 0.9) return "desert";
+  if (n < -0.9) return "snow";
+  return "grass";
+}
+
+const WATER_Y = -3.1;
+
 const QUEST_NOUNS = [
   ["bintang emas", 0xffd447],
   ["buah beri merah", 0xe14b4b],
@@ -47,11 +62,14 @@ const QUEST_NOUNS = [
 ] as const;
 
 const GUEST_KEY = "meadowfar-progress";
+const DAY_SECONDS = 240; // full day-night cycle length
 
 export default function Game() {
   const mountRef = useRef<HTMLDivElement>(null);
   const [hero, setHero] = useState<HeroId | null>(null);
-  const [quest, setQuest] = useState("");
+  const [lang, setLang] = useState<Lang>("en");
+  const langRef = useRef<Lang>("en");
+  const [questData, setQuestData] = useState<{ num: number; need: number; noun: string } | null>(null);
   const [progressText, setProgressText] = useState("");
   const [score, setScore] = useState(0);
   const [toast, setToast] = useState("");
@@ -61,15 +79,30 @@ export default function Game() {
   const [hudLevel, setHudLevel] = useState(1);
   const [hudXp, setHudXp] = useState(0);
   const [showBook, setShowBook] = useState(false);
+  const [npcNear, setNpcNear] = useState(false);
+  const [storyOpen, setStoryOpen] = useState<number | null>(null); // chapter being read
+  const [musicOn, setMusicOn] = useState(true);
   const joyRef = useRef({ x: 0, y: 0, active: false });
   const jumpRef = useRef(false);
+  const talkRef = useRef(false);
   const progRef = useRef<Progress>(defaultProgress());
   const userRef = useRef<string | null>(null);
+  const musicRef = useRef(true);
   const toastQueue = useRef<string[]>([]);
   const toastBusy = useRef(false);
 
   // ---------- load account + saved progress ----------
   useEffect(() => {
+    const l = detectLang();
+    setLang(l);
+    langRef.current = l;
+    try {
+      const m = localStorage.getItem("meadowfar-music");
+      if (m === "off") {
+        setMusicOn(false);
+        musicRef.current = false;
+      }
+    } catch {}
     (async () => {
       try {
         const me = await fetch("/api/auth/me").then((r) => r.json());
@@ -139,6 +172,12 @@ export default function Game() {
     progRef.current.lastHero = hero;
 
     const has = (skill: string) => progRef.current.skills.includes(skill);
+    const nm = (d: { nama: string; namaEn: string }) =>
+      langRef.current === "id" ? d.nama : d.namaEn;
+    const t = <A extends unknown[]>(entry: { id: ((...a: A) => string) | string; en: ((...a: A) => string) | string }, ...args: A) => {
+      const v = langRef.current === "id" ? entry.id : entry.en;
+      return typeof v === "function" ? v(...args) : v;
+    };
     const toolBonus = () =>
       Math.max(
         0,
@@ -151,7 +190,7 @@ export default function Game() {
       const def = ACHIEVEMENTS.find((a) => a.id === id);
       if (!def) return;
       p.achievements = [...p.achievements, id];
-      pushToast(`Prestasi terbuka: ${def.nama}`);
+      pushToast(t(UI.achievementUnlocked, nm(def)));
     }
 
     function gainXp(amount: number) {
@@ -167,38 +206,67 @@ export default function Game() {
         const newTools = upgraded.tools.filter((t) => !p.tools.includes(t));
         Object.assign(p, upgraded);
         setHudLevel(after);
-        pushToast(`Naik ke level ${after}!`);
+        pushToast(t(UI.levelUp, after));
         newHeroes.forEach((h) =>
-          pushToast(`Tokoh baru: ${HEROES.find((x) => x.id === h)?.nama}`)
+          pushToast(t(UI.newHero, nm(HEROES.find((x) => x.id === h)!)))
         );
         newSkills.forEach((s) =>
-          pushToast(`Keahlian baru: ${SKILLS.find((x) => x.id === s)?.nama}`)
+          pushToast(t(UI.newSkill, nm(SKILLS.find((x) => x.id === s)!)))
         );
-        newTools.forEach((t) =>
-          pushToast(`Perlengkapan baru: ${TOOLS.find((x) => x.id === t)?.nama}`)
+        newTools.forEach((tl) =>
+          pushToast(t(UI.newGear, nm(TOOLS.find((x) => x.id === tl)!)))
         );
+        PETS.forEach((pt) => {
+          if (after >= pt.level && before < pt.level)
+            pushToast(t(UI.newPet, nm(pt)));
+        });
         if (after >= 5) award("level-5");
         if (after >= 10) award("level-10");
         setProg({ ...p });
       }
     }
 
-    // soft collect chime, generated in code (no audio files)
+    // ---------- audio: chimes + gentle procedural lullaby (no audio files) ----------
     let audioCtx: AudioContext | null = null;
+    function ctx() {
+      audioCtx = audioCtx || new AudioContext();
+      return audioCtx;
+    }
     function chime(freq: number) {
       try {
-        audioCtx = audioCtx || new AudioContext();
-        const o = audioCtx.createOscillator();
-        const g = audioCtx.createGain();
+        const c = ctx();
+        const o = c.createOscillator();
+        const g = c.createGain();
         o.type = "sine";
         o.frequency.value = freq;
-        g.gain.setValueAtTime(0.15, audioCtx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
-        o.connect(g).connect(audioCtx.destination);
+        g.gain.setValueAtTime(0.15, c.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.5);
+        o.connect(g).connect(c.destination);
         o.start();
-        o.stop(audioCtx.currentTime + 0.5);
+        o.stop(c.currentTime + 0.5);
       } catch {}
     }
+    const SCALE = [261.63, 293.66, 329.63, 392.0, 440.0, 523.25, 587.33];
+    const melodyRand = mulberry32(777);
+    let step = 0;
+    const musicTimer = setInterval(() => {
+      if (!musicRef.current) return;
+      try {
+        const c = ctx();
+        step++;
+        if (melodyRand() < 0.35) return; // rests keep it airy
+        const note = SCALE[Math.floor(melodyRand() * SCALE.length)];
+        const o = c.createOscillator();
+        const g = c.createGain();
+        o.type = "triangle";
+        o.frequency.value = step % 8 === 0 ? note / 2 : note;
+        g.gain.setValueAtTime(0.035, c.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.0005, c.currentTime + 1.4);
+        o.connect(g).connect(c.destination);
+        o.start();
+        o.stop(c.currentTime + 1.4);
+      } catch {}
+    }, 480);
 
     // ---------- renderer / scene ----------
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -209,8 +277,11 @@ export default function Game() {
     mount.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x9fd8ef);
-    scene.fog = new THREE.Fog(0x9fd8ef, 60, 190);
+    const DAY_SKY = new THREE.Color(0x9fd8ef);
+    const NIGHT_SKY = new THREE.Color(0x1c2a4a);
+    const skyColor = DAY_SKY.clone();
+    scene.background = skyColor;
+    scene.fog = new THREE.Fog(skyColor, 60, 190);
 
     const camera = new THREE.PerspectiveCamera(
       60,
@@ -228,7 +299,30 @@ export default function Game() {
     sun.shadow.camera.top = 80;
     sun.shadow.camera.bottom = -80;
     scene.add(sun);
-    scene.add(new THREE.HemisphereLight(0xcfeaff, 0x7cc26a, 1.1));
+    const hemi = new THREE.HemisphereLight(0xcfeaff, 0x7cc26a, 1.1);
+    scene.add(hemi);
+
+    // moon + stars for the night half of the cycle
+    const moon = new THREE.Mesh(
+      new THREE.SphereGeometry(3, 12, 12),
+      new THREE.MeshBasicMaterial({ color: 0xf3f0dc })
+    );
+    scene.add(moon);
+    const starGeo = new THREE.BufferGeometry();
+    const starPos = new Float32Array(300 * 3);
+    for (let i = 0; i < 300; i++) {
+      const a = rand() * Math.PI * 2;
+      const r = 150 + rand() * 80;
+      starPos[i * 3] = Math.cos(a) * r;
+      starPos[i * 3 + 1] = 40 + rand() * 120;
+      starPos[i * 3 + 2] = Math.sin(a) * r;
+    }
+    starGeo.setAttribute("position", new THREE.BufferAttribute(starPos, 3));
+    const starMat = new THREE.PointsMaterial({
+      color: 0xffffff, size: 0.9, transparent: true, opacity: 0,
+    });
+    const stars = new THREE.Points(starGeo, starMat);
+    scene.add(stars);
 
     // drifting clouds
     const cloudMat = new THREE.MeshStandardMaterial({
@@ -250,7 +344,7 @@ export default function Game() {
       clouds.push(c);
     }
 
-    // butterflies
+    // butterflies (day) + fireflies (night)
     const butterflies: { g: THREE.Group; w1: THREE.Mesh; w2: THREE.Mesh; a: number }[] = [];
     const wingGeo = new THREE.PlaneGeometry(0.4, 0.3);
     for (let i = 0; i < 12; i++) {
@@ -266,6 +360,16 @@ export default function Game() {
       g.position.set((rand() - 0.5) * 60, 3 + rand() * 2, (rand() - 0.5) * 60);
       scene.add(g);
       butterflies.push({ g, w1, w2, a: rand() * Math.PI * 2 });
+    }
+    const fireflies: THREE.Mesh[] = [];
+    const fireflyMat = new THREE.MeshBasicMaterial({
+      color: 0xd8ff7a, transparent: true, opacity: 0,
+    });
+    for (let i = 0; i < 16; i++) {
+      const f = new THREE.Mesh(new THREE.SphereGeometry(0.09, 5, 5), fireflyMat);
+      f.position.set((rand() - 0.5) * 50, 2, (rand() - 0.5) * 50);
+      scene.add(f);
+      fireflies.push(f);
     }
 
     // wandering bunnies
@@ -352,7 +456,76 @@ export default function Game() {
     scene.add(player);
     player.position.set(0, terrainHeight(0, 0), 0);
 
-    // ---------- chunked infinite world ----------
+    // lantern glow at night (only when the lantern gear is owned)
+    const lantern = new THREE.PointLight(0xffd9a0, 0, 14);
+    lantern.position.set(0.7, 1.8, 0.4);
+    player.add(lantern);
+
+    // ---------- pets: companions that follow the player ----------
+    function buildPet(id: string) {
+      const g = new THREE.Group();
+      if (id === "puppy") {
+        const fur = new THREE.MeshStandardMaterial({ color: 0xa9743e });
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.9), fur);
+        body.position.y = 0.4;
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.4, 0.42), fur);
+        head.position.set(0, 0.72, 0.55);
+        const tail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.4), fur);
+        tail.position.set(0, 0.62, -0.55);
+        const e1 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.06), fur);
+        e1.position.set(-0.16, 0.98, 0.5);
+        const e2 = e1.clone();
+        e2.position.x = 0.16;
+        g.add(body, head, tail, e1, e2);
+      } else if (id === "fox") {
+        const fur = new THREE.MeshStandardMaterial({ color: 0xe07a2f });
+        const white = new THREE.MeshStandardMaterial({ color: 0xfff4e6 });
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.4, 0.95), fur);
+        body.position.y = 0.42;
+        const head = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.5, 4), fur);
+        head.rotation.x = Math.PI / 2;
+        head.position.set(0, 0.72, 0.65);
+        const tail = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.6, 6), white);
+        tail.rotation.x = -Math.PI / 2.5;
+        tail.position.set(0, 0.68, -0.62);
+        const e1 = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.25, 4), fur);
+        e1.position.set(-0.14, 1.0, 0.5);
+        const e2 = e1.clone();
+        e2.position.x = 0.14;
+        g.add(body, head, tail, e1, e2);
+      } else {
+        const feathers = new THREE.MeshStandardMaterial({ color: 0x4b9fe1 });
+        const body = new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 8), feathers);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 8, 8), feathers);
+        head.position.set(0, 0.28, 0.18);
+        const beak = new THREE.Mesh(
+          new THREE.ConeGeometry(0.06, 0.18, 4),
+          new THREE.MeshStandardMaterial({ color: 0xffb02e })
+        );
+        beak.rotation.x = Math.PI / 2;
+        beak.position.set(0, 0.28, 0.38);
+        const w1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.3), feathers);
+        w1.position.set(-0.3, 0.05, 0);
+        const w2 = w1.clone();
+        w2.position.x = 0.3;
+        g.add(body, head, beak, w1, w2);
+        g.userData.wings = [w1, w2];
+      }
+      g.visible = false;
+      scene.add(g);
+      return g;
+    }
+    const petMeshes = new Map(PETS.map((p) => [p.id, buildPet(p.id)]));
+    function activePetId(): string | null {
+      const lv = levelFromXp(progRef.current.xp);
+      const unlocked = PETS.filter((p) => lv >= p.level);
+      if (!unlocked.length) return null;
+      if (progRef.current.pet && unlocked.some((p) => p.id === progRef.current.pet))
+        return progRef.current.pet;
+      return unlocked[unlocked.length - 1].id;
+    }
+
+    // ---------- chunked infinite world with biomes + lakes ----------
     const CHUNK = 48;
     const VIEW = 2; // chunks in each direction
     const chunks = new Map<string, THREE.Group>();
@@ -361,31 +534,54 @@ export default function Game() {
     const treeMats = [0x2e8b46, 0x3aa055, 0x27793c].map(
       (c) => new THREE.MeshStandardMaterial({ color: c })
     );
+    const pineMat = new THREE.MeshStandardMaterial({ color: 0x2a6e4f });
+    const snowCapMat = new THREE.MeshStandardMaterial({ color: 0xf2f7fb });
+    const cactusMat = new THREE.MeshStandardMaterial({ color: 0x3f9e58 });
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x7a4d2b });
     const flowerMats = [0xffffff, 0xffd447, 0xff8fb3, 0xb28fff].map(
       (c) => new THREE.MeshStandardMaterial({ color: c })
     );
     const rockMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, flatShading: true });
+    const groundMats: Record<Biome, THREE.MeshStandardMaterial> = {
+      grass: new THREE.MeshStandardMaterial({ color: 0x6fc25f }),
+      desert: new THREE.MeshStandardMaterial({ color: 0xe6c67a }),
+      snow: new THREE.MeshStandardMaterial({ color: 0xeef4f8 }),
+    };
+    const waterMat = new THREE.MeshStandardMaterial({
+      color: 0x3f8fd0, transparent: true, opacity: 0.75,
+    });
 
     function buildChunk(cx: number, cz: number) {
       const g = new THREE.Group();
+      const biome = biomeAt(cx * CHUNK, cz * CHUNK);
       const geo = new THREE.PlaneGeometry(CHUNK, CHUNK, 24, 24);
       geo.rotateX(-Math.PI / 2);
       const pos = geo.attributes.position;
+      let minY = Infinity;
       for (let i = 0; i < pos.count; i++) {
         const wx = pos.getX(i) + cx * CHUNK;
         const wz = pos.getZ(i) + cz * CHUNK;
-        pos.setY(i, terrainHeight(wx, wz));
+        const y = terrainHeight(wx, wz);
+        if (y < minY) minY = y;
+        pos.setY(i, y);
       }
       geo.computeVertexNormals();
-      const ground = new THREE.Mesh(
-        geo,
-        new THREE.MeshStandardMaterial({ color: 0x6fc25f })
-      );
+      const ground = new THREE.Mesh(geo, groundMats[biome]);
       ground.receiveShadow = true;
       g.add(ground);
 
-      // scatter props deterministically per chunk
+      // lakes: fill the valleys with a still water sheet
+      if (minY < WATER_Y - 0.1) {
+        const water = new THREE.Mesh(
+          new THREE.PlaneGeometry(CHUNK, CHUNK),
+          waterMat
+        );
+        water.rotation.x = -Math.PI / 2;
+        water.position.set(cx * CHUNK, WATER_Y, cz * CHUNK);
+        g.add(water);
+      }
+
+      // scatter props deterministically per chunk, themed per biome
       const n = 14;
       for (let i = 0; i < n; i++) {
         const r1 = hash2(cx * 91 + i * 7, cz * 57 + i * 13);
@@ -393,33 +589,130 @@ export default function Game() {
         const x = cx * CHUNK + (r1 - 0.5) * CHUNK;
         const z = cz * CHUNK + (r2 - 0.5) * CHUNK;
         const y = terrainHeight(x, z);
+        if (y < WATER_Y + 0.3) continue; // nothing grows under water
         const kind = hash2(x, z);
-        if (kind < 0.45) {
-          const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-          trunk.position.set(x, y + 1.2, z);
-          trunk.castShadow = true;
-          const top = new THREE.Mesh(treeGeo, treeMats[i % 3]);
-          top.position.set(x, y + 4.5, z);
-          top.castShadow = true;
-          g.add(trunk, top);
-        } else if (kind < 0.8) {
-          const f = new THREE.Mesh(
-            new THREE.SphereGeometry(0.28, 6, 6),
-            flowerMats[i % 4]
-          );
-          f.position.set(x, y + 0.3, z);
-          g.add(f);
+        if (biome === "desert") {
+          if (kind < 0.4) {
+            const trunk = new THREE.Mesh(
+              new THREE.CylinderGeometry(0.35, 0.4, 2.6, 7),
+              cactusMat
+            );
+            trunk.position.set(x, y + 1.3, z);
+            trunk.castShadow = true;
+            const arm = new THREE.Mesh(
+              new THREE.CylinderGeometry(0.2, 0.2, 1.1, 6),
+              cactusMat
+            );
+            arm.position.set(x + 0.5, y + 1.7, z);
+            g.add(trunk, arm);
+          } else if (kind < 0.75) {
+            const rock = new THREE.Mesh(
+              new THREE.DodecahedronGeometry(0.6 + kind, 0),
+              new THREE.MeshStandardMaterial({ color: 0xc9a15f, flatShading: true })
+            );
+            rock.position.set(x, y + 0.35, z);
+            rock.castShadow = true;
+            g.add(rock);
+          }
+        } else if (biome === "snow") {
+          if (kind < 0.5) {
+            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+            trunk.position.set(x, y + 1.2, z);
+            trunk.castShadow = true;
+            const top = new THREE.Mesh(treeGeo, pineMat);
+            top.position.set(x, y + 4.3, z);
+            top.castShadow = true;
+            const cap = new THREE.Mesh(new THREE.ConeGeometry(1.4, 1.4, 7), snowCapMat);
+            cap.position.set(x, y + 6.2, z);
+            g.add(trunk, top, cap);
+          } else if (kind < 0.8) {
+            const drift = new THREE.Mesh(
+              new THREE.SphereGeometry(0.5 + kind * 0.4, 7, 7),
+              snowCapMat
+            );
+            drift.position.set(x, y + 0.2, z);
+            g.add(drift);
+          }
         } else {
-          const rock = new THREE.Mesh(
-            new THREE.DodecahedronGeometry(0.8 + kind, 0),
-            rockMat
-          );
-          rock.position.set(x, y + 0.4, z);
-          rock.castShadow = true;
-          g.add(rock);
+          if (kind < 0.45) {
+            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+            trunk.position.set(x, y + 1.2, z);
+            trunk.castShadow = true;
+            const top = new THREE.Mesh(treeGeo, treeMats[i % 3]);
+            top.position.set(x, y + 4.5, z);
+            top.castShadow = true;
+            g.add(trunk, top);
+          } else if (kind < 0.8) {
+            const f = new THREE.Mesh(
+              new THREE.SphereGeometry(0.28, 6, 6),
+              flowerMats[i % 4]
+            );
+            f.position.set(x, y + 0.3, z);
+            g.add(f);
+          } else {
+            const rock = new THREE.Mesh(
+              new THREE.DodecahedronGeometry(0.8 + kind, 0),
+              rockMat
+            );
+            rock.position.set(x, y + 0.4, z);
+            rock.castShadow = true;
+            g.add(rock);
+          }
         }
       }
       return g;
+    }
+
+    // ---------- villages with story-telling elders ----------
+    const REGION = CHUNK * 4; // one possible village per 192x192 region
+    const villages = new Map<string, { g: THREE.Group; elder: THREE.Group }>();
+    function villagePos(rx: number, rz: number) {
+      if (hash2(rx * 13.7 + 5, rz * 9.1 + 3) > 0.55) return null;
+      const ox = (hash2(rx, rz * 3) - 0.5) * REGION * 0.4;
+      const oz = (hash2(rx * 7, rz) - 0.5) * REGION * 0.4;
+      const x = rx * REGION + REGION / 2 + ox;
+      const z = rz * REGION + REGION / 2 + oz;
+      if (terrainHeight(x, z) < WATER_Y + 0.5) return null;
+      return { x, z };
+    }
+    function buildVillage(x: number, z: number) {
+      const g = new THREE.Group();
+      const wall = new THREE.MeshStandardMaterial({ color: 0xf0e3c8 });
+      const roof = new THREE.MeshStandardMaterial({ color: 0xc0563a });
+      for (let i = 0; i < 3; i++) {
+        const a = (i / 3) * Math.PI * 2 + 0.6;
+        const hx = x + Math.cos(a) * 7;
+        const hz = z + Math.sin(a) * 7;
+        const hy = terrainHeight(hx, hz);
+        const house = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 4), wall);
+        house.position.set(hx, hy + 1.5, hz);
+        house.castShadow = true;
+        const top = new THREE.Mesh(new THREE.ConeGeometry(3.2, 2.2, 4), roof);
+        top.rotation.y = Math.PI / 4;
+        top.position.set(hx, hy + 4.1, hz);
+        g.add(house, top);
+      }
+      // the elder: a small robed figure who tells the star story
+      const elder = new THREE.Group();
+      const robe = new THREE.MeshStandardMaterial({ color: 0x6d5bd0 });
+      const body = new THREE.Mesh(new THREE.ConeGeometry(0.55, 1.6, 8), robe);
+      body.position.y = 0.8;
+      const headE = new THREE.Mesh(
+        new THREE.SphereGeometry(0.32, 8, 8),
+        new THREE.MeshStandardMaterial({ color: 0xf1c6a0 })
+      );
+      headE.position.y = 1.85;
+      const beard = new THREE.Mesh(
+        new THREE.ConeGeometry(0.2, 0.5, 6),
+        new THREE.MeshStandardMaterial({ color: 0xe8e8e8 })
+      );
+      beard.position.set(0, 1.6, 0.22);
+      elder.add(body, headE, beard);
+      const ey = terrainHeight(x, z);
+      elder.position.set(x, ey, z);
+      g.add(elder);
+      scene.add(g);
+      return { g, elder };
     }
 
     // ---------- quests + collectibles ----------
@@ -445,13 +738,17 @@ export default function Game() {
         const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.55), mat);
         const ang = rand() * Math.PI * 2;
         const dist = 14 + rand() * 45;
-        const x = player.position.x + Math.cos(ang) * dist;
-        const z = player.position.z + Math.sin(ang) * dist;
+        let x = player.position.x + Math.cos(ang) * dist;
+        let z = player.position.z + Math.sin(ang) * dist;
+        if (terrainHeight(x, z) < WATER_Y) {
+          x = player.position.x + Math.cos(ang) * 12;
+          z = player.position.z + Math.sin(ang) * 12;
+        }
         m.position.set(x, terrainHeight(x, z) + 1.4, z);
         scene.add(m);
         items.push(m);
       }
-      setQuest(`Misi ${questIdx}: kumpulkan ${need} ${noun}`);
+      setQuestData({ num: questIdx, need, noun });
       setProgressText(`0 / ${need}`);
     }
     newQuest();
@@ -483,9 +780,13 @@ export default function Game() {
     let airborne = false;
     let usedDouble = false;
     let jumpHeld = false;
+    let talkHeld = false;
+    let nearElder: THREE.Group | null = null;
+    let lastBiome: Biome = "grass";
     let last = performance.now();
     let raf = 0;
     let localScore = 0;
+    const dayStart = performance.now() - DAY_SECONDS * 250; // begin mid-morning
 
     function frame(now: number) {
       raf = requestAnimationFrame(frame);
@@ -527,6 +828,14 @@ export default function Game() {
       }
       player.rotation.y += (yaw - player.rotation.y) * 0.2;
 
+      // biome discovery achievements
+      const b = biomeAt(player.position.x, player.position.z);
+      if (b !== lastBiome) {
+        lastBiome = b;
+        if (b === "desert") award("biome-desert");
+        if (b === "snow") award("biome-snow");
+      }
+
       // jump: single, plus double jump and glide when unlocked
       const jumpPressed = keys[" "] || jumpRef.current;
       const jumpPower = has("rocket") ? 12 : 9;
@@ -556,8 +865,50 @@ export default function Game() {
           airborne = false;
         }
       }
-      player.position.y =
-        terrainHeight(player.position.x, player.position.z) + jumpY;
+      const groundY = Math.max(
+        terrainHeight(player.position.x, player.position.z),
+        WATER_Y // kids float on the lake surface instead of sinking
+      );
+      player.position.y = groundY + jumpY;
+
+      // ---------- day-night cycle ----------
+      const dayT = (((now - dayStart) / 1000) % DAY_SECONDS) / DAY_SECONDS;
+      const sunA = dayT * Math.PI * 2;
+      const dl = Math.max(0, Math.sin(sunA)); // daylight 0..1
+      sun.position.set(
+        player.position.x + Math.cos(sunA) * 70,
+        Math.sin(sunA) * 70,
+        player.position.z + 20
+      );
+      sun.intensity = 0.15 + 2.25 * dl;
+      hemi.intensity = 0.3 + 0.8 * dl;
+      skyColor.copy(NIGHT_SKY).lerp(DAY_SKY, dl);
+      (scene.fog as THREE.Fog).color.copy(skyColor);
+      moon.position.set(
+        player.position.x - Math.cos(sunA) * 120,
+        Math.max(10, -Math.sin(sunA) * 90),
+        player.position.z - 60
+      );
+      starMat.opacity = 1 - Math.min(1, dl * 1.6);
+      stars.position.set(player.position.x, 0, player.position.z);
+      fireflyMat.opacity = 1 - Math.min(1, dl * 1.8);
+      lantern.intensity =
+        p.tools.includes("lantern") ? (1 - dl) * 2.2 : 0;
+      if (dl < 0.03) award("night-owl");
+
+      fireflies.forEach((f, i) => {
+        f.position.x += Math.cos(now / 900 + i * 2.1) * dt * 2;
+        f.position.z += Math.sin(now / 700 + i * 1.3) * dt * 2;
+        f.position.y =
+          terrainHeight(f.position.x, f.position.z) +
+          1.5 + Math.sin(now / 300 + i) * 0.6;
+        if (f.position.distanceTo(player.position) > 60)
+          f.position.set(
+            player.position.x + (hash2(i, (now / 1000) | 0) - 0.5) * 40,
+            2,
+            player.position.z + (hash2((now / 1000) | 0, i) - 0.5) * 40
+          );
+      });
 
       // ambient life
       clouds.forEach((c, i) => {
@@ -567,36 +918,108 @@ export default function Game() {
           (player.position.z - c.position.z > 130 ? 260 : 0) -
           (c.position.z - player.position.z > 130 ? 260 : 0);
       });
-      butterflies.forEach((b, i) => {
-        b.a += dt * 0.6;
-        b.g.position.x += Math.cos(b.a) * dt * 3;
-        b.g.position.z += Math.sin(b.a) * dt * 3;
-        const gy = terrainHeight(b.g.position.x, b.g.position.z);
-        b.g.position.y = gy + 2.5 + Math.sin(now / 250 + i) * 0.5;
+      butterflies.forEach((bf, i) => {
+        bf.a += dt * 0.6;
+        bf.g.visible = dl > 0.15; // butterflies sleep at night
+        bf.g.position.x += Math.cos(bf.a) * dt * 3;
+        bf.g.position.z += Math.sin(bf.a) * dt * 3;
+        const gy = terrainHeight(bf.g.position.x, bf.g.position.z);
+        bf.g.position.y = gy + 2.5 + Math.sin(now / 250 + i) * 0.5;
         const flap = Math.sin(now / 60 + i) * 0.9;
-        b.w1.rotation.y = flap;
-        b.w2.rotation.y = -flap;
-        if (b.g.position.distanceTo(player.position) > 90)
-          b.g.position.set(
+        bf.w1.rotation.y = flap;
+        bf.w2.rotation.y = -flap;
+        if (bf.g.position.distanceTo(player.position) > 90)
+          bf.g.position.set(
             player.position.x + (hash2(i, now | 0) - 0.5) * 50,
             0,
             player.position.z + (hash2(now | 0, i) - 0.5) * 50
           );
       });
-      bunnies.forEach((b, i) => {
-        b.a += (hash2(i, Math.floor(now / 2000)) - 0.5) * dt * 3;
-        b.g.position.x += Math.sin(b.a) * b.s * dt;
-        b.g.position.z += Math.cos(b.a) * b.s * dt;
-        b.g.rotation.y = b.a;
-        const gy = terrainHeight(b.g.position.x, b.g.position.z);
-        b.g.position.y = gy + Math.abs(Math.sin(now / 220 + i)) * 0.35;
-        if (b.g.position.distanceTo(player.position) > 90)
-          b.g.position.set(
+      bunnies.forEach((bn, i) => {
+        bn.a += (hash2(i, Math.floor(now / 2000)) - 0.5) * dt * 3;
+        bn.g.position.x += Math.sin(bn.a) * bn.s * dt;
+        bn.g.position.z += Math.cos(bn.a) * bn.s * dt;
+        bn.g.rotation.y = bn.a;
+        const gy = terrainHeight(bn.g.position.x, bn.g.position.z);
+        bn.g.position.y = gy + Math.abs(Math.sin(now / 220 + i)) * 0.35;
+        if (bn.g.position.distanceTo(player.position) > 90)
+          bn.g.position.set(
             player.position.x + (hash2(i * 3, i) - 0.5) * 40,
             0,
             player.position.z + (hash2(i, i * 7) - 0.5) * 40
           );
       });
+
+      // pet follows a step behind the player
+      const petId = activePetId();
+      petMeshes.forEach((mesh, id) => {
+        mesh.visible = id === petId;
+      });
+      if (petId) {
+        const mesh = petMeshes.get(petId)!;
+        const behind = new THREE.Vector3(
+          player.position.x - Math.sin(player.rotation.y) * 2.4,
+          0,
+          player.position.z - Math.cos(player.rotation.y) * 2.4
+        );
+        mesh.position.x += (behind.x - mesh.position.x) * Math.min(1, dt * 4);
+        mesh.position.z += (behind.z - mesh.position.z) * Math.min(1, dt * 4);
+        const gy = Math.max(
+          terrainHeight(mesh.position.x, mesh.position.z),
+          WATER_Y
+        );
+        if (petId === "bird") {
+          mesh.position.y = gy + 2.2 + Math.sin(now / 260) * 0.4;
+          const wings = mesh.userData.wings as THREE.Mesh[] | undefined;
+          if (wings) {
+            const flap = Math.sin(now / 80) * 0.7;
+            wings[0].rotation.z = flap;
+            wings[1].rotation.z = -flap;
+          }
+        } else {
+          mesh.position.y = gy + Math.abs(Math.sin(now / 200)) * 0.2;
+        }
+        mesh.rotation.y = player.rotation.y;
+      }
+
+      // ---------- villages: stream in/out + elder talk ----------
+      const prx = Math.floor(player.position.x / REGION);
+      const prz = Math.floor(player.position.z / REGION);
+      for (let dx3 = -1; dx3 <= 1; dx3++)
+        for (let dz3 = -1; dz3 <= 1; dz3++) {
+          const key = `${prx + dx3},${prz + dz3}`;
+          if (!villages.has(key)) {
+            const spot = villagePos(prx + dx3, prz + dz3);
+            if (spot) villages.set(key, buildVillage(spot.x, spot.z));
+            else villages.set(key, { g: new THREE.Group(), elder: new THREE.Group() });
+          }
+        }
+      villages.forEach((v, key) => {
+        const [rx, rz] = key.split(",").map(Number);
+        if (Math.abs(rx - prx) > 2 || Math.abs(rz - prz) > 2) {
+          scene.remove(v.g);
+          villages.delete(key);
+        }
+      });
+      nearElder = null;
+      villages.forEach((v) => {
+        if (!v.elder.parent) return;
+        v.elder.rotation.y = Math.atan2(
+          player.position.x - v.elder.position.x,
+          player.position.z - v.elder.position.z
+        );
+        v.elder.position.y =
+          terrainHeight(v.elder.position.x, v.elder.position.z) +
+          Math.sin(now / 500) * 0.05;
+        if (v.elder.position.distanceTo(player.position) < 6) nearElder = v.elder;
+      });
+      setNpcNear(!!nearElder && p.storyChapter < STORY.length);
+      const talkPressed = keys["e"] || talkRef.current;
+      if (talkPressed && !talkHeld && nearElder && p.storyChapter < STORY.length) {
+        setStoryOpen(p.storyChapter + 1);
+      }
+      talkHeld = talkPressed;
+      talkRef.current = false;
 
       // arrow toward nearest quest item
       if (items.length) {
@@ -625,7 +1048,6 @@ export default function Game() {
       );
       camera.position.lerp(camTarget, 0.08);
       camera.lookAt(player.position.x, player.position.y + 2, player.position.z);
-      sun.position.set(player.position.x + 40, 70, player.position.z + 20);
       sun.target.position.copy(player.position);
       sun.target.updateMatrixWorld();
 
@@ -665,7 +1087,7 @@ export default function Game() {
           );
         } else {
           m.position.y =
-            terrainHeight(m.position.x, m.position.z) +
+            Math.max(terrainHeight(m.position.x, m.position.z), WATER_Y) +
             1.4 + Math.sin(now / 300 + i) * 0.25;
         }
         if (dist < 2.2) {
@@ -692,7 +1114,7 @@ export default function Game() {
             award("quest-1");
             if (p.missionsDone >= 10) award("quest-10");
             if (p.missionsDone >= 50) award("quest-50");
-            pushToast("Misi selesai! Petualangan baru dimulai...");
+            pushToast(t(UI.missionDone));
             save();
             newQuest();
           }
@@ -706,16 +1128,68 @@ export default function Game() {
     return () => {
       cancelAnimationFrame(raf);
       clearInterval(saveTimer);
+      clearInterval(musicTimer);
       window.removeEventListener("beforeunload", onLeave);
       window.removeEventListener("keydown", kd);
       window.removeEventListener("keyup", ku);
       window.removeEventListener("resize", onResize);
       save();
+      try {
+        audioCtx?.close();
+      } catch {}
       renderer.dispose();
       mount.removeChild(renderer.domElement);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hero]);
+
+  // finish reading a story chapter: advance, reward, save
+  function closeStory(accepted: boolean) {
+    setStoryOpen(null);
+    if (!accepted) return;
+    const p = progRef.current;
+    if (p.storyChapter >= STORY.length) return;
+    p.storyChapter++;
+    p.xp += 50;
+    setHudXp(p.xp);
+    setHudLevel(levelFromXp(p.xp));
+    const grant = (id: string) => {
+      if (!p.achievements.includes(id)) {
+        const def = ACHIEVEMENTS.find((a) => a.id === id)!;
+        p.achievements = [...p.achievements, id];
+        const name = lang === "id" ? def.nama : def.namaEn;
+        pushToast(lang === "id" ? `Prestasi terbuka: ${name}` : `Achievement unlocked: ${name}`);
+      }
+    };
+    if (p.storyChapter >= 1) grant("story-1");
+    if (p.storyChapter >= 6) grant("story-6");
+    if (p.storyChapter >= 12) grant("story-12");
+    Object.assign(p, applyUnlocks(p));
+    setProg({ ...p });
+    save();
+  }
+
+  function toggleLang() {
+    const next: Lang = lang === "id" ? "en" : "id";
+    setLang(next);
+    langRef.current = next;
+    saveLang(next);
+  }
+
+  function toggleMusic() {
+    const next = !musicRef.current;
+    musicRef.current = next;
+    setMusicOn(next);
+    try {
+      localStorage.setItem("meadowfar-music", next ? "on" : "off");
+    } catch {}
+  }
+
+  function choosePet(id: string) {
+    progRef.current.pet = id;
+    setProg({ ...progRef.current });
+    save();
+  }
 
   // ---------- virtual joystick (touch) ----------
   const joyStart = (e: React.TouchEvent<HTMLDivElement>) => {
@@ -737,7 +1211,7 @@ export default function Game() {
   if (!prog)
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-sky-300 to-emerald-200">
-        <p className="text-lg font-semibold text-emerald-900">Memuat petualanganmu...</p>
+        <p className="text-lg font-semibold text-emerald-900">{pick(lang, UI.loading.id, UI.loading.en)}</p>
       </div>
     );
 
@@ -745,12 +1219,18 @@ export default function Game() {
     const level = levelFromXp(prog.xp);
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-gradient-to-b from-sky-300 to-emerald-200 px-6 py-12 text-center">
+        <button
+          onClick={toggleLang}
+          className="absolute right-4 top-4 rounded-xl border border-emerald-700 px-4 py-2 text-sm font-semibold text-emerald-800"
+        >
+          {lang === "id" ? "English" : "Bahasa Indonesia"}
+        </button>
         <div>
-          <h1 className="text-4xl font-bold text-emerald-900">Pilih penjelajahmu</h1>
+          <h1 className="text-4xl font-bold text-emerald-900">{pick(lang, UI.choose.id, UI.choose.en)}</h1>
           <p className="mx-auto mt-3 max-w-md text-emerald-800">
             {user
-              ? `Halo, ${user}! Level ${level} — progresmu tersimpan di akun.`
-              : "Bermain sebagai tamu. Progres tersimpan di perangkat ini saja — buat akun agar aman."}
+              ? (lang === "id" ? UI.helloUser.id : UI.helloUser.en)(user, level)
+              : pick(lang, UI.guestNote.id, UI.guestNote.en)}
           </p>
         </div>
         <div className="grid max-w-3xl grid-cols-2 gap-4 md:grid-cols-3">
@@ -771,10 +1251,10 @@ export default function Game() {
                   className="mx-auto mb-3 block h-10 w-10 rounded-full"
                   style={{ background: `#${h.cloth.toString(16).padStart(6, "0")}` }}
                 />
-                {h.nama}
+                {lang === "id" ? h.nama : h.namaEn}
                 {!unlocked && (
                   <span className="mt-1 block text-xs font-normal">
-                    Terbuka di level {h.level}
+                    {(lang === "id" ? UI.unlockAtLevel.id : UI.unlockAtLevel.en)(h.level)}
                   </span>
                 )}
               </button>
@@ -785,10 +1265,10 @@ export default function Game() {
           {!user && (
             <>
               <a href="/daftar" className="rounded-xl bg-emerald-700 px-5 py-2 font-semibold text-white">
-                Daftar
+                {pick(lang, UI.register.id, UI.register.en)}
               </a>
               <a href="/masuk" className="rounded-xl border border-emerald-700 px-5 py-2 font-semibold text-emerald-800">
-                Masuk
+                {pick(lang, UI.login.id, UI.login.en)}
               </a>
             </>
           )}
@@ -800,17 +1280,27 @@ export default function Game() {
   const level = hudLevel;
   const xpNow = hudXp - xpForLevel(level);
   const xpNext = xpForLevel(level + 1) - xpForLevel(level);
+  const chapter = storyOpen ? STORY[storyOpen - 1] : null;
+  const nounName = questData
+    ? (QUEST_NOUN_NAMES[questData.noun]?.[lang] ?? questData.noun)
+    : "";
+  const questLine = questData
+    ? (lang === "id" ? UI.mission.id : UI.mission.en)(questData.num, questData.need, nounName)
+    : "";
 
   return (
     <div className="relative h-screen w-screen overflow-hidden">
       <div ref={mountRef} className="h-full w-full" />
       <div className="pointer-events-none absolute left-4 top-4 rounded-xl bg-black/45 px-4 py-3 text-white backdrop-blur">
-        <p className="text-sm font-semibold">{quest}</p>
-        <p className="text-xs opacity-80">Terkumpul: {progressText}</p>
-        <p className="mt-1 text-xs opacity-80">Skor: {score}</p>
-        <p className="text-xs opacity-80">Rekor: {prog.bestScore}</p>
+        <p className="text-sm font-semibold">{questLine}</p>
+        <p className="text-xs opacity-80">{pick(lang, UI.collected.id, UI.collected.en)}: {progressText}</p>
+        <p className="mt-1 text-xs opacity-80">{pick(lang, UI.scoreLbl.id, UI.scoreLbl.en)}: {score}</p>
+        <p className="text-xs opacity-80">{pick(lang, UI.bestLbl.id, UI.bestLbl.en)}: {prog.bestScore}</p>
+        <p className="text-xs opacity-80">
+          {(lang === "id" ? UI.storyLbl.id : UI.storyLbl.en)(prog.storyChapter, STORY.length)}
+        </p>
         <div className="mt-2">
-          <p className="text-xs font-semibold text-amber-300">Level {level}</p>
+          <p className="text-xs font-semibold text-amber-300">{pick(lang, UI.level.id, UI.level.en)} {level}</p>
           <div className="mt-1 h-1.5 w-36 overflow-hidden rounded-full bg-white/25">
             <div
               className="h-full rounded-full bg-amber-400 transition-all"
@@ -826,56 +1316,137 @@ export default function Game() {
         &uarr;
       </div>
       <div className="pointer-events-none absolute right-4 top-4 rounded-xl bg-black/45 px-4 py-2 text-xs text-white backdrop-blur">
-        WASD / panah jalan · Spasi lompat{" "}
-        {prog.skills.includes("sprint") && "· Shift lari"}
+        {pick(lang, UI.controls.id, UI.controls.en)}{" "}
+        {prog.skills.includes("sprint") && pick(lang, UI.sprintHint.id, UI.sprintHint.en)}
       </div>
-      <button
-        onClick={() => setShowBook(true)}
-        className="absolute right-4 top-16 rounded-xl bg-black/45 px-4 py-2 text-xs font-semibold text-amber-300 backdrop-blur"
-      >
-        Buku petualang
-      </button>
+      <div className="absolute right-4 top-16 flex flex-col gap-2">
+        <button
+          onClick={() => setShowBook(true)}
+          className="rounded-xl bg-black/45 px-4 py-2 text-xs font-semibold text-amber-300 backdrop-blur"
+        >
+          {pick(lang, UI.book.id, UI.book.en)}
+        </button>
+        <button
+          onClick={toggleMusic}
+          className="rounded-xl bg-black/45 px-4 py-2 text-xs font-semibold text-white backdrop-blur"
+        >
+          {pick(lang, UI.music.id, UI.music.en)}: {musicOn ? pick(lang, UI.on.id, UI.on.en) : pick(lang, UI.off.id, UI.off.en)}
+        </button>
+        <button
+          onClick={toggleLang}
+          className="rounded-xl bg-black/45 px-4 py-2 text-xs font-semibold text-white backdrop-blur"
+        >
+          {lang === "id" ? "English" : "Bahasa Indonesia"}
+        </button>
+      </div>
+      {npcNear && !storyOpen && (
+        <button
+          onClick={() => (talkRef.current = true)}
+          onTouchStart={() => (talkRef.current = true)}
+          className="absolute bottom-36 left-1/2 -translate-x-1/2 rounded-2xl bg-violet-500 px-8 py-3 font-bold text-white shadow-xl"
+        >
+          {pick(lang, UI.talkElder.id, UI.talkElder.en)}
+        </button>
+      )}
       {toast && (
         <div className="pointer-events-none absolute left-1/2 top-1/3 -translate-x-1/2 rounded-2xl bg-amber-400 px-8 py-4 text-lg font-bold text-amber-950 shadow-2xl">
           {toast}
+        </div>
+      )}
+      {chapter && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-lg rounded-3xl bg-amber-50 p-8 text-amber-950 shadow-2xl">
+            <p className="text-xs font-semibold uppercase tracking-wide text-violet-600">
+              {(lang === "id" ? UI.storyHeader.id : UI.storyHeader.en)(chapter.bab, STORY.length)}
+            </p>
+            <h2 className="mt-1 text-2xl font-bold">{pick(lang, chapter.judul, chapter.judulEn)}</h2>
+            <p className="mt-4 leading-relaxed">{pick(lang, chapter.teks, chapter.teksEn)}</p>
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => closeStory(true)}
+                className="rounded-xl bg-violet-600 px-6 py-3 font-semibold text-white"
+              >
+                {pick(lang, UI.thanksElder.id, UI.thanksElder.en)}
+              </button>
+              <button
+                onClick={() => closeStory(false)}
+                className="rounded-xl border border-amber-300 px-6 py-3 font-semibold"
+              >
+                {pick(lang, UI.later.id, UI.later.en)}
+              </button>
+            </div>
+          </div>
         </div>
       )}
       {showBook && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 p-4">
           <div className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6 text-emerald-950 shadow-2xl">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">Buku petualang</h2>
+              <h2 className="text-xl font-bold">{pick(lang, UI.book.id, UI.book.en)}</h2>
               <button
                 onClick={() => setShowBook(false)}
                 className="rounded-full bg-emerald-100 px-4 py-1 font-semibold"
               >
-                Tutup
+                {pick(lang, UI.close.id, UI.close.en)}
               </button>
             </div>
             <p className="mt-2 text-sm text-emerald-700">
-              Level {level} · {prog.itemsCollected} item · {prog.missionsDone} misi ·{" "}
-              {Math.round(prog.distance)} m berjalan
+              {(lang === "id" ? UI.bookStats.id : UI.bookStats.en)(
+                level,
+                prog.itemsCollected,
+                prog.missionsDone,
+                Math.round(prog.distance),
+                prog.storyChapter,
+                STORY.length
+              )}
             </p>
-            <h3 className="mt-5 font-semibold">Keahlian</h3>
+            <h3 className="mt-5 font-semibold">{pick(lang, UI.pets.id, UI.pets.en)}</h3>
+            <div className="mt-2 flex gap-2">
+              {PETS.map((pt) => {
+                const unlocked = level >= pt.level;
+                const active = prog.pet === pt.id;
+                return (
+                  <button
+                    key={pt.id}
+                    disabled={!unlocked}
+                    onClick={() => choosePet(pt.id)}
+                    className={`rounded-xl border px-4 py-2 text-sm font-semibold ${
+                      active
+                        ? "border-emerald-600 bg-emerald-600 text-white"
+                        : unlocked
+                          ? "border-emerald-300 text-emerald-800"
+                          : "border-emerald-100 text-emerald-300"
+                    }`}
+                  >
+                    {lang === "id" ? pt.nama : pt.namaEn}
+                    {!unlocked && ` (Lv ${pt.level})`}
+                  </button>
+                );
+              })}
+            </div>
+            <h3 className="mt-5 font-semibold">{pick(lang, UI.skills.id, UI.skills.en)}</h3>
             <ul className="mt-2 space-y-1 text-sm">
               {SKILLS.map((s) => (
                 <li key={s.id} className={prog.skills.includes(s.id) ? "" : "opacity-40"}>
-                  {prog.skills.includes(s.id) ? "✓" : `Lv ${s.level}`} — {s.nama}:{" "}
-                  {s.keterangan}
+                  {prog.skills.includes(s.id) ? "✓" : `Lv ${s.level}`} —{" "}
+                  {lang === "id" ? s.nama : s.namaEn}:{" "}
+                  {lang === "id" ? s.keterangan : s.keteranganEn}
                 </li>
               ))}
             </ul>
-            <h3 className="mt-5 font-semibold">Perlengkapan</h3>
+            <h3 className="mt-5 font-semibold">{pick(lang, UI.gear.id, UI.gear.en)}</h3>
             <ul className="mt-2 space-y-1 text-sm">
               {TOOLS.map((t) => (
                 <li key={t.id} className={prog.tools.includes(t.id) ? "" : "opacity-40"}>
-                  {prog.tools.includes(t.id) ? "✓" : `Lv ${t.level}`} — {t.nama}
-                  {t.bonus > 0 && ` (+${t.bonus} skor per item)`}
+                  {prog.tools.includes(t.id) ? "✓" : `Lv ${t.level}`} —{" "}
+                  {lang === "id" ? t.nama : t.namaEn}
+                  {t.bonus > 0 && (lang === "id" ? UI.gearBonus.id : UI.gearBonus.en)(t.bonus)}
                 </li>
               ))}
             </ul>
             <h3 className="mt-5 font-semibold">
-              Prestasi ({prog.achievements.length}/{ACHIEVEMENTS.length})
+              {pick(lang, UI.achievements.id, UI.achievements.en)} (
+              {prog.achievements.length}/{ACHIEVEMENTS.length})
             </h3>
             <ul className="mt-2 space-y-1 text-sm">
               {ACHIEVEMENTS.map((a) => (
@@ -883,7 +1454,9 @@ export default function Game() {
                   key={a.id}
                   className={prog.achievements.includes(a.id) ? "" : "opacity-40"}
                 >
-                  {prog.achievements.includes(a.id) ? "★" : "☆"} {a.nama} — {a.keterangan}
+                  {prog.achievements.includes(a.id) ? "★" : "☆"}{" "}
+                  {lang === "id" ? a.nama : a.namaEn} —{" "}
+                  {lang === "id" ? a.keterangan : a.keteranganEn}
                 </li>
               ))}
             </ul>
@@ -900,7 +1473,7 @@ export default function Game() {
         onTouchStart={() => (jumpRef.current = true)}
         className="absolute bottom-10 right-8 h-20 w-20 rounded-full border-4 border-white/50 bg-amber-400/70 text-sm font-bold text-amber-950 backdrop-blur md:hidden"
       >
-        Lompat
+        {pick(lang, UI.jumpBtn.id, UI.jumpBtn.en)}
       </button>
     </div>
   );

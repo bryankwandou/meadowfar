@@ -31,8 +31,12 @@ const maxProgress = {
     "first-item", "items-25", "items-100", "items-500",
     "quest-1", "quest-10", "quest-50", "jump-100",
     "walk-1000", "walk-10000", "level-5", "level-10",
+    "story-1", "story-6", "story-12",
+    "biome-desert", "biome-snow", "night-owl",
   ],
   lastHero: "wizard",
+  storyChapter: 12,
+  pet: "bird",
 };
 
 const sql = neon(process.env.DATABASE_URL);

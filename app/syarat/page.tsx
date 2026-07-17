@@ -35,8 +35,38 @@ export default function SyaratPage() {
           berjalan, tetapi tidak menjanjikan layanan bebas gangguan.
         </li>
       </ol>
+      <hr className="mt-10 border-emerald-200" />
+      <h1 className="mt-10 text-3xl font-bold">Terms and conditions</h1>
+      <p className="mt-2 text-sm text-emerald-700">Effective since July 15, 2026</p>
+      <ol className="mt-8 list-decimal space-y-4 pl-5 leading-relaxed">
+        <li>
+          Meadowfar is a free game for children. There are no ads, no in-game
+          purchases, and no chat between players.
+        </li>
+        <li>
+          Accounts exist only to save play progress: levels, scores,
+          characters, and achievements. One person may create one account for
+          each child in their family.
+        </li>
+        <li>
+          Children under 13 should be registered by, or together with, a
+          parent or guardian.
+        </li>
+        <li>
+          Usernames must not be rude, offensive, or contain personal details
+          such as a home address or phone number.
+        </li>
+        <li>
+          We may close accounts that break the rules above. You may also ask
+          for your account to be deleted at any time.
+        </li>
+        <li>
+          The game is provided as is. We work to keep it running, but we do
+          not promise an uninterrupted service.
+        </li>
+      </ol>
       <Link href="/daftar" className="mt-10 inline-block font-semibold text-emerald-700 underline">
-        Kembali ke pendaftaran
+        Kembali ke pendaftaran / Back to sign-up
       </Link>
     </main>
   );
