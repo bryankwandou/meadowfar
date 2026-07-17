@@ -5,6 +5,7 @@ export type HeroId = "girl" | "boy" | "knight" | "explorer" | "wizard" | "robot"
 export interface HeroDef {
   id: HeroId;
   nama: string;
+  namaEn: string;
   level: number; // level needed to unlock
   cloth: number;
   hair: number;
@@ -12,64 +13,89 @@ export interface HeroDef {
 }
 
 export const HEROES: HeroDef[] = [
-  { id: "girl", nama: "Anak perempuan", level: 1, cloth: 0xe0559b, hair: 0x6b3f22, skin: 0xf1c6a0 },
-  { id: "boy", nama: "Anak laki-laki", level: 1, cloth: 0x3f7ede, hair: 0x2b2b2b, skin: 0xf1c6a0 },
-  { id: "knight", nama: "Satria padang", level: 3, cloth: 0x8a94a6, hair: 0x4a3a2a, skin: 0xf1c6a0 },
-  { id: "explorer", nama: "Penjelajah rimba", level: 5, cloth: 0xc98a3b, hair: 0x1f1f1f, skin: 0xd9a06b },
-  { id: "wizard", nama: "Penyihir bintang", level: 8, cloth: 0x7b4fd0, hair: 0xe8e8e8, skin: 0xf1c6a0 },
-  { id: "robot", nama: "Robot sahabat", level: 12, cloth: 0x58c6c0, hair: 0x9aa0a6, skin: 0xbfc7cf },
+  { id: "girl", nama: "Anak perempuan", namaEn: "Girl explorer", level: 1, cloth: 0xe0559b, hair: 0x6b3f22, skin: 0xf1c6a0 },
+  { id: "boy", nama: "Anak laki-laki", namaEn: "Boy explorer", level: 1, cloth: 0x3f7ede, hair: 0x2b2b2b, skin: 0xf1c6a0 },
+  { id: "knight", nama: "Satria padang", namaEn: "Meadow knight", level: 3, cloth: 0x8a94a6, hair: 0x4a3a2a, skin: 0xf1c6a0 },
+  { id: "explorer", nama: "Penjelajah rimba", namaEn: "Jungle ranger", level: 5, cloth: 0xc98a3b, hair: 0x1f1f1f, skin: 0xd9a06b },
+  { id: "wizard", nama: "Penyihir bintang", namaEn: "Star wizard", level: 8, cloth: 0x7b4fd0, hair: 0xe8e8e8, skin: 0xf1c6a0 },
+  { id: "robot", nama: "Robot sahabat", namaEn: "Buddy robot", level: 12, cloth: 0x58c6c0, hair: 0x9aa0a6, skin: 0xbfc7cf },
 ];
 
 export interface SkillDef {
   id: string;
   nama: string;
+  namaEn: string;
   level: number;
   keterangan: string;
+  keteranganEn: string;
 }
 
 export const SKILLS: SkillDef[] = [
-  { id: "sprint", nama: "Lari kilat", level: 2, keterangan: "Tahan Shift untuk berlari lebih cepat" },
-  { id: "doublejump", nama: "Lompat ganda", level: 4, keterangan: "Tekan lompat sekali lagi di udara" },
-  { id: "magnet", nama: "Magnet bintang", level: 6, keterangan: "Item terdekat tertarik sendiri kepadamu" },
-  { id: "glide", nama: "Meluncur angin", level: 9, keterangan: "Tahan lompat saat jatuh untuk melayang pelan" },
-  { id: "rocket", nama: "Sepatu roket", level: 14, keterangan: "Lompatan jauh lebih tinggi" },
+  { id: "sprint", nama: "Lari kilat", namaEn: "Swift sprint", level: 2, keterangan: "Tahan Shift untuk berlari lebih cepat", keteranganEn: "Hold Shift to run faster" },
+  { id: "doublejump", nama: "Lompat ganda", namaEn: "Double jump", level: 4, keterangan: "Tekan lompat sekali lagi di udara", keteranganEn: "Press jump once more in mid-air" },
+  { id: "magnet", nama: "Magnet bintang", namaEn: "Star magnet", level: 6, keterangan: "Item terdekat tertarik sendiri kepadamu", keteranganEn: "Nearby items float toward you on their own" },
+  { id: "glide", nama: "Meluncur angin", namaEn: "Wind glide", level: 9, keterangan: "Tahan lompat saat jatuh untuk melayang pelan", keteranganEn: "Hold jump while falling to drift down slowly" },
+  { id: "rocket", nama: "Sepatu roket", namaEn: "Rocket boots", level: 14, keterangan: "Lompatan jauh lebih tinggi", keteranganEn: "Jump much higher" },
 ];
 
 export interface ToolDef {
   id: string;
   nama: string;
+  namaEn: string;
   level: number;
   bonus: number; // extra score per collected item
 }
 
 // Kid-safe gear tiers — progression like weapon upgrades in big games, but friendly.
 export const TOOLS: ToolDef[] = [
-  { id: "net", nama: "Jaring kupu-kupu", level: 1, bonus: 0 },
-  { id: "lantern", nama: "Lentera kunang", level: 3, bonus: 2 },
-  { id: "wand", nama: "Tongkat bintang", level: 7, bonus: 5 },
-  { id: "kite", nama: "Layang-layang emas", level: 11, bonus: 8 },
-  { id: "crown", nama: "Mahkota padang", level: 16, bonus: 12 },
+  { id: "net", nama: "Jaring kupu-kupu", namaEn: "Butterfly net", level: 1, bonus: 0 },
+  { id: "lantern", nama: "Lentera kunang", namaEn: "Firefly lantern", level: 3, bonus: 2 },
+  { id: "wand", nama: "Tongkat bintang", namaEn: "Star wand", level: 7, bonus: 5 },
+  { id: "kite", nama: "Layang-layang emas", namaEn: "Golden kite", level: 11, bonus: 8 },
+  { id: "crown", nama: "Mahkota padang", namaEn: "Meadow crown", level: 16, bonus: 12 },
+];
+
+export interface PetDef {
+  id: string;
+  nama: string;
+  namaEn: string;
+  level: number;
+}
+
+// Companions that follow the player around — unlocked by level.
+export const PETS: PetDef[] = [
+  { id: "puppy", nama: "Anak anjing", namaEn: "Puppy", level: 3 },
+  { id: "fox", nama: "Rubah oranye", namaEn: "Orange fox", level: 7 },
+  { id: "bird", nama: "Burung biru", namaEn: "Bluebird", level: 10 },
 ];
 
 export interface AchievementDef {
   id: string;
   nama: string;
+  namaEn: string;
   keterangan: string;
+  keteranganEn: string;
 }
 
 export const ACHIEVEMENTS: AchievementDef[] = [
-  { id: "first-item", nama: "Temuan pertama", keterangan: "Ambil item pertamamu" },
-  { id: "items-25", nama: "Pengumpul rajin", keterangan: "Kumpulkan 25 item" },
-  { id: "items-100", nama: "Pemburu harta", keterangan: "Kumpulkan 100 item" },
-  { id: "items-500", nama: "Legenda padang", keterangan: "Kumpulkan 500 item" },
-  { id: "quest-1", nama: "Misi perdana", keterangan: "Selesaikan misi pertama" },
-  { id: "quest-10", nama: "Sepuluh petualangan", keterangan: "Selesaikan 10 misi" },
-  { id: "quest-50", nama: "Penjelajah sejati", keterangan: "Selesaikan 50 misi" },
-  { id: "jump-100", nama: "Kaki pegas", keterangan: "Melompat 100 kali" },
-  { id: "walk-1000", nama: "Seribu langkah", keterangan: "Berjalan sejauh 1.000 meter" },
-  { id: "walk-10000", nama: "Pengembara jauh", keterangan: "Berjalan sejauh 10.000 meter" },
-  { id: "level-5", nama: "Bintang lima", keterangan: "Capai level 5" },
-  { id: "level-10", nama: "Bintang sepuluh", keterangan: "Capai level 10" },
+  { id: "first-item", nama: "Temuan pertama", namaEn: "First find", keterangan: "Ambil item pertamamu", keteranganEn: "Pick up your first item" },
+  { id: "items-25", nama: "Pengumpul rajin", namaEn: "Keen collector", keterangan: "Kumpulkan 25 item", keteranganEn: "Collect 25 items" },
+  { id: "items-100", nama: "Pemburu harta", namaEn: "Treasure hunter", keterangan: "Kumpulkan 100 item", keteranganEn: "Collect 100 items" },
+  { id: "items-500", nama: "Legenda padang", namaEn: "Meadow legend", keterangan: "Kumpulkan 500 item", keteranganEn: "Collect 500 items" },
+  { id: "quest-1", nama: "Misi perdana", namaEn: "First quest", keterangan: "Selesaikan misi pertama", keteranganEn: "Finish your first quest" },
+  { id: "quest-10", nama: "Sepuluh petualangan", namaEn: "Ten adventures", keterangan: "Selesaikan 10 misi", keteranganEn: "Finish 10 quests" },
+  { id: "quest-50", nama: "Penjelajah sejati", namaEn: "True explorer", keterangan: "Selesaikan 50 misi", keteranganEn: "Finish 50 quests" },
+  { id: "jump-100", nama: "Kaki pegas", namaEn: "Springy legs", keterangan: "Melompat 100 kali", keteranganEn: "Jump 100 times" },
+  { id: "walk-1000", nama: "Seribu langkah", namaEn: "A thousand steps", keterangan: "Berjalan sejauh 1.000 meter", keteranganEn: "Walk 1,000 meters" },
+  { id: "walk-10000", nama: "Pengembara jauh", namaEn: "Far wanderer", keterangan: "Berjalan sejauh 10.000 meter", keteranganEn: "Walk 10,000 meters" },
+  { id: "level-5", nama: "Bintang lima", namaEn: "Five stars", keterangan: "Capai level 5", keteranganEn: "Reach level 5" },
+  { id: "level-10", nama: "Bintang sepuluh", namaEn: "Ten stars", keterangan: "Capai level 10", keteranganEn: "Reach level 10" },
+  { id: "story-1", nama: "Awal kisah", namaEn: "The story begins", keterangan: "Dengarkan bab pertama dari tetua desa", keteranganEn: "Hear the first chapter from a village elder" },
+  { id: "story-6", nama: "Setengah perjalanan", namaEn: "Halfway there", keterangan: "Capai bab 6 kisah bintang", keteranganEn: "Reach chapter 6 of the star story" },
+  { id: "story-12", nama: "Penjaga bintang", namaEn: "Keeper of the stars", keterangan: "Tamatkan 12 bab kisah bintang", keteranganEn: "Finish all 12 chapters of the star story" },
+  { id: "biome-desert", nama: "Penakluk pasir", namaEn: "Sand conqueror", keterangan: "Injak gurun pasir untuk pertama kali", keteranganEn: "Set foot in the desert for the first time" },
+  { id: "biome-snow", nama: "Penjelajah salju", namaEn: "Snow explorer", keterangan: "Injak padang salju untuk pertama kali", keteranganEn: "Set foot in the snowfield for the first time" },
+  { id: "night-owl", nama: "Sahabat malam", namaEn: "Night owl", keterangan: "Bertualang saat langit malam tiba", keteranganEn: "Keep adventuring after night falls" },
 ];
 
 export interface Progress {
@@ -84,6 +110,8 @@ export interface Progress {
   tools: string[];
   achievements: string[];
   lastHero: HeroId | null;
+  storyChapter: number; // 0..12, chapters of "Bintang yang Hilang" heard so far
+  pet: string | null; // active companion id
 }
 
 export function levelFromXp(xp: number) {
@@ -106,6 +134,8 @@ export function defaultProgress(): Progress {
     tools: ["net"],
     achievements: [],
     lastHero: null,
+    storyChapter: 0,
+    pet: null,
   };
 }
 
@@ -122,6 +152,8 @@ export function maxProgress(): Progress {
     tools: TOOLS.map((t) => t.id),
     achievements: ACHIEVEMENTS.map((a) => a.id),
     lastHero: "wizard",
+    storyChapter: 12,
+    pet: "bird",
   };
 }
 
@@ -163,6 +195,11 @@ export function sanitizeProgress(raw: unknown): Progress {
     lastHero:
       typeof r.lastHero === "string" && HEROES.some((h) => h.id === r.lastHero)
         ? (r.lastHero as HeroId)
+        : null,
+    storyChapter: Math.min(12, Math.floor(num(r.storyChapter, 12))),
+    pet:
+      typeof r.pet === "string" && PETS.some((p) => p.id === r.pet)
+        ? r.pet
         : null,
   });
 }

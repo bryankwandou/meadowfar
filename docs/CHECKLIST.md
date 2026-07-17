@@ -34,11 +34,13 @@ Catatan jujur: daftar 50.000 butir tidak akan membantu siapa pun — yang pentin
 - [x] Simpan otomatis: tiap 15 detik + tiap misi selesai + saat keluar halaman
 - [x] Mode tamu tetap jalan (localStorage) dengan ajakan buat akun
 - [x] Sanitasi progres di server (anti nilai mustahil / cheat payload)
-- [ ] Biome baru (gurun, salju, danau)
-- [ ] NPC desa + cerita 12 bab
-- [ ] Siklus siang-malam
-- [ ] Hewan peliharaan pengikut
-- [ ] Musik latar prosedural
+- [x] Biome baru: gurun (kaktus), salju (pinus bersalju), danau (air di lembah)
+- [x] Desa NPC prosedural + tetua pencerita, cerita utama 12 bab dua bahasa
+- [x] Siklus siang-malam: matahari-bulan-bintang, kunang-kunang malam, lentera menyala
+- [x] Hewan peliharaan pengikut: anak anjing (lv3), rubah (lv7), burung (lv10)
+- [x] Musik latar prosedural (WebAudio) + tombol nyala/mati
+- [x] Dua bahasa penuh (Indonesia/Inggris) dengan toggle di game dan halaman akun
+- [x] Prestasi baru: cerita, biome, malam (total 18)
 - [ ] Rumah pohon + dekorasi
 - [ ] Papan peringkat keluarga
 - [ ] Mode foto

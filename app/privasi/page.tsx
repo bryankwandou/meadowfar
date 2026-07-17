@@ -40,8 +40,42 @@ export default function PrivasiPage() {
           </p>
         </section>
       </div>
+      <hr className="mt-10 border-emerald-200" />
+      <h1 className="mt-10 text-3xl font-bold">Privacy policy</h1>
+      <p className="mt-2 text-sm text-emerald-700">Effective since July 15, 2026</p>
+      <div className="mt-8 space-y-6 leading-relaxed">
+        <section>
+          <h2 className="font-semibold">What we store</h2>
+          <p>
+            Only three things: a username, an email address, and play-progress
+            data (level, score, characters, achievements). Passwords are stored
+            as one-way hashes, so nobody can read them — including us.
+          </p>
+        </section>
+        <section>
+          <h2 className="font-semibold">What we never do</h2>
+          <p>
+            We do not sell or share data with anyone, show ads, track location,
+            or collect anything beyond what is listed above.
+          </p>
+        </section>
+        <section>
+          <h2 className="font-semibold">Where data lives</h2>
+          <p>
+            Data is stored in a managed database (Neon Postgres) over encrypted
+            connections.
+          </p>
+        </section>
+        <section>
+          <h2 className="font-semibold">Your rights</h2>
+          <p>
+            Parents or account owners can request a copy or deletion of their
+            data at any time through the project repository&apos;s contact page.
+          </p>
+        </section>
+      </div>
       <Link href="/daftar" className="mt-10 inline-block font-semibold text-emerald-700 underline">
-        Kembali ke pendaftaran
+        Kembali ke pendaftaran / Back to sign-up
       </Link>
     </main>
   );
