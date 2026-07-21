@@ -9,18 +9,18 @@ Tujuan: membawa Meadowfar dari purwarupa menjadi permainan dunia terbuka untuk a
 - H8–9: Halaman daftar (username, email, sandi, konfirmasi, ceklis S&K + privasi) dan masuk; halaman /syarat dan /privasi.
 - H10: Sistem progression — XP, level, 6 tokoh, 5 keahlian, 5 perlengkapan, 12 prestasi, Buku Petualang, simpan otomatis ke cloud tiap 15 detik; akun uji progres maksimum untuk QA orang tua.
 
-## Fase 2 — Kedalaman dunia (hari 11–30)
+## Fase 2 — Kedalaman dunia (hari 11–30) ✅ selesai
 - H11–14: Biome baru — gurun pasir, salju, danau — pindah biome berdasar jarak dari titik awal.
 - H15–18: Desa NPC ramah: penduduk kotak yang memberi misi cerita berantai (tanpa chat bebas, semua dialog tertulis dan aman).
 - H19–22: Siklus siang-malam + kunang-kunang malam; lentera berfungsi menerangi.
 - H23–26: Hewan peliharaan yang mengikuti pemain (anak anjing, rubah, burung) — hadiah level.
 - H27–30: Musik latar prosedural (WebAudio, tanpa file), pengaturan volume.
 
-## Fase 3 — Cerita & misi kompleks (hari 31–55)
-- H31–38: Alur cerita utama 12 bab: "Bintang yang hilang dari langit Meadowfar" — tiap bab membuka wilayah dan tokoh cerita baru.
-- H39–45: Jenis misi baru: balapan waktu, mencari jejak, teka-teki batu, menolong hewan.
-- H46–50: Rumah pohon pemain: dekorasi yang bisa dipasang dari hadiah misi.
-- H51–55: Papan peringkat keluarga (antar 12 akun anak, tanpa orang asing).
+## Fase 3 — Cerita & misi kompleks (hari 31–55) ✅ selesai
+- H31–38: Alur cerita utama 12 bab "Bintang yang hilang dari langit Meadowfar", tiap bab ditutup permintaan tetua yang menunjuk jenis misi berikutnya.
+- H39–45: Lima jenis misi bergilir: kumpul serpihan, balapan gerbang berwaktu, berburu peti harta, mengantar paket, mengembalikan pecahan bintang ke altar.
+- H46–50: Rumah pohon tetap dekat titik awal + 8 hiasan yang dibuka lewat jumlah misi dan dipasang sendiri oleh anak.
+- H51–55: Papan keluarga /keluarga — level, bab kisah, jumlah item; urut abjad tanpa peringkat agar tidak ada anak yang merasa kalah.
 
 ## Fase 4 — Rasa AAA (hari 56–80)
 - H56–62: Peningkatan grafis: rumput bergoyang instanced, air memantul, partikel debu/kelap-kelip.
