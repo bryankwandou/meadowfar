@@ -26,6 +26,9 @@ export function ensureSchema() {
         data JSONB NOT NULL,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       )`;
+      // Parent controls, added after launch — safe to run on an existing table.
+      await q`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_parent BOOLEAN NOT NULL DEFAULT false`;
+      await q`ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_limit_min INTEGER NOT NULL DEFAULT 0`;
     })().catch((e) => {
       schemaReady = null;
       throw e;

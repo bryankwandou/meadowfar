@@ -73,6 +73,9 @@ const QUEST_ROTATION: QuestKind[] = [
   "collect", "delivery", "race", "shard",
 ];
 
+// Photo-mode stickers. Emoji keeps this asset-free and renders everywhere.
+const STICKERS = ["⭐", "🌟", "🐰", "🦊", "🐦", "🌸", "🍄", "🌈", "🎈", "👑", "😄", "❤️"];
+
 export default function Game() {
   const mountRef = useRef<HTMLDivElement>(null);
   const [hero, setHero] = useState<HeroId | null>(null);
@@ -83,6 +86,18 @@ export default function Game() {
   const [raceTime, setRaceTime] = useState<number | null>(null);
   const [raceGates, setRaceGates] = useState<{ done: number; total: number } | null>(null);
   const [showHome, setShowHome] = useState(false);
+  const [gfx, setGfx] = useState<"auto" | "low" | "high">("auto");
+  const [photoMode, setPhotoMode] = useState(false);
+  const [sticker, setSticker] = useState(STICKERS[0]);
+  const [placedStickers, setPlacedStickers] = useState<
+    { e: string; x: number; y: number }[]
+  >([]);
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [isParent, setIsParent] = useState(false);
+  const [restOpen, setRestOpen] = useState(false);
+  const limitRef = useRef(0); // daily minutes allowed; 0 = no limit
+  const captureRef = useRef(false);
+  const onCaptureRef = useRef<((url: string) => void) | null>(null);
   const [progressText, setProgressText] = useState("");
   const [score, setScore] = useState(0);
   const [toast, setToast] = useState("");
@@ -117,6 +132,8 @@ export default function Game() {
         setMusicOn(false);
         musicRef.current = false;
       }
+      const q = localStorage.getItem("meadowfar-gfx");
+      if (q === "low" || q === "high" || q === "auto") setGfx(q);
     } catch {}
     (async () => {
       try {
@@ -124,6 +141,8 @@ export default function Game() {
         if (me.user) {
           userRef.current = me.user.username;
           setUser(me.user.username);
+          setIsParent(!!me.user.isParent);
+          limitRef.current = me.user.dailyLimitMin || 0;
           const p = await fetch("/api/progress").then((r) => r.json());
           const clean = sanitizeProgress(p.progress);
           progRef.current = clean;
@@ -144,6 +163,25 @@ export default function Game() {
       setHudXp(clean.xp);
     })();
   }, []);
+
+  // Daily play-time: counted per calendar day on the device. When a parent has
+  // set a limit we show a gentle reminder — never a lock-out, never a scold.
+  useEffect(() => {
+    if (!hero) return;
+    const key = () => `meadowfar-played-${new Date().toISOString().slice(0, 10)}`;
+    const tick = setInterval(() => {
+      let mins = 0;
+      try {
+        mins = Number(localStorage.getItem(key()) || "0") + 1;
+        localStorage.setItem(key(), String(mins));
+      } catch {
+        return;
+      }
+      const lim = limitRef.current;
+      if (lim > 0 && mins >= lim && mins % 10 === lim % 10) setRestOpen(true);
+    }, 60000);
+    return () => clearInterval(tick);
+  }, [hero]);
 
   function pushToast(msg: string) {
     toastQueue.current.push(msg);
@@ -283,12 +321,20 @@ export default function Game() {
       } catch {}
     }, 480);
 
+    // ---------- graphics tier ----------
+    // School laptops and cheap Android phones have to stay playable, so every
+    // expensive feature is gated behind the tier rather than shipped to all.
+    const cores = navigator.hardwareConcurrency || 4;
+    const autoLow = cores <= 4 || window.innerWidth < 820;
+    const tier: "low" | "high" = gfx === "auto" ? (autoLow ? "low" : "high") : gfx;
+    const LOW = tier === "low";
+
     // ---------- renderer / scene ----------
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: !LOW });
     renderer.setSize(mount.clientWidth, mount.clientHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, LOW ? 1.25 : 2));
+    renderer.shadowMap.enabled = !LOW;
+    renderer.shadowMap.type = LOW ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
     mount.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -307,8 +353,8 @@ export default function Game() {
 
     const sun = new THREE.DirectionalLight(0xfff2d8, 2.4);
     sun.position.set(40, 70, 20);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.castShadow = !LOW;
+    sun.shadow.mapSize.set(LOW ? 512 : 2048, LOW ? 512 : 2048);
     sun.shadow.camera.left = -80;
     sun.shadow.camera.right = 80;
     sun.shadow.camera.top = 80;
@@ -376,6 +422,24 @@ export default function Game() {
       scene.add(g);
       butterflies.push({ g, w1, w2, a: rand() * Math.PI * 2 });
     }
+    // sunlit dust motes drifting through the air — pure atmosphere, near-zero cost
+    const dustGeo = new THREE.BufferGeometry();
+    const DUST = LOW ? 0 : 140;
+    const dustPos = new Float32Array(Math.max(1, DUST) * 3);
+    for (let i = 0; i < DUST; i++) {
+      dustPos[i * 3] = (rand() - 0.5) * 70;
+      dustPos[i * 3 + 1] = 1 + rand() * 14;
+      dustPos[i * 3 + 2] = (rand() - 0.5) * 70;
+    }
+    dustGeo.setAttribute("position", new THREE.BufferAttribute(dustPos, 3));
+    const dustMat = new THREE.PointsMaterial({
+      color: 0xfff6d8, size: 0.14, transparent: true,
+      opacity: 0.55, depthWrite: false,
+    });
+    const dust = new THREE.Points(dustGeo, dustMat);
+    dust.visible = DUST > 0;
+    scene.add(dust);
+
     const fireflies: THREE.Mesh[] = [];
     const fireflyMat = new THREE.MeshBasicMaterial({
       color: 0xd8ff7a, transparent: true, opacity: 0,
@@ -562,9 +626,46 @@ export default function Game() {
       desert: new THREE.MeshStandardMaterial({ color: 0xe6c67a }),
       snow: new THREE.MeshStandardMaterial({ color: 0xeef4f8 }),
     };
+    // one clock shared by every animated material
+    const uTime = { value: 0 };
+
     const waterMat = new THREE.MeshStandardMaterial({
       color: 0x3f8fd0, transparent: true, opacity: 0.75,
     });
+    // gentle rolling swell so lakes never look like flat blue paper
+    waterMat.onBeforeCompile = (sh) => {
+      sh.uniforms.uTime = uTime;
+      sh.vertexShader =
+        "uniform float uTime;\n" +
+        sh.vertexShader.replace(
+          "#include <begin_vertex>",
+          `#include <begin_vertex>
+           vec4 wpW = modelMatrix * vec4(transformed, 1.0);
+           transformed.z += sin(uTime * 1.1 + wpW.x * 0.25) * 0.18
+                          + cos(uTime * 0.8 + wpW.z * 0.2) * 0.12;`
+        );
+    };
+
+    // instanced waving grass — the single biggest "alive" upgrade per frame cost
+    const bladeGeo = new THREE.PlaneGeometry(0.17, 0.85);
+    bladeGeo.translate(0, 0.42, 0);
+    const grassMat = new THREE.MeshStandardMaterial({
+      color: 0x5aad4a, side: THREE.DoubleSide,
+    });
+    grassMat.onBeforeCompile = (sh) => {
+      sh.uniforms.uTime = uTime;
+      sh.vertexShader =
+        "uniform float uTime;\n" +
+        sh.vertexShader.replace(
+          "#include <begin_vertex>",
+          `#include <begin_vertex>
+           float sway = transformed.y * 0.42;
+           vec4 wpG = instanceMatrix * vec4(transformed, 1.0);
+           transformed.x += sin(uTime * 1.7 + wpG.x * 0.4 + wpG.z * 0.3) * sway;
+           transformed.z += cos(uTime * 1.3 + wpG.x * 0.25) * sway * 0.55;`
+        );
+    };
+    const BLADES = LOW ? 0 : 620; // low tier skips grass entirely
 
     function buildChunk(cx: number, cz: number) {
       const g = new THREE.Group();
@@ -585,15 +686,44 @@ export default function Game() {
       ground.receiveShadow = true;
       g.add(ground);
 
-      // lakes: fill the valleys with a still water sheet
+      // lakes: fill the valleys with a gently swelling water sheet
       if (minY < WATER_Y - 0.1) {
         const water = new THREE.Mesh(
-          new THREE.PlaneGeometry(CHUNK, CHUNK),
+          new THREE.PlaneGeometry(CHUNK, CHUNK, LOW ? 1 : 14, LOW ? 1 : 14),
           waterMat
         );
         water.rotation.x = -Math.PI / 2;
         water.position.set(cx * CHUNK, WATER_Y, cz * CHUNK);
         g.add(water);
+      }
+
+      // waving grass tufts, meadow only
+      if (BLADES && biome === "grass") {
+        const blades = new THREE.InstancedMesh(bladeGeo, grassMat, BLADES);
+        const mtx = new THREE.Matrix4();
+        const q = new THREE.Quaternion();
+        const sc = new THREE.Vector3();
+        const pv = new THREE.Vector3();
+        let placed = 0;
+        for (let i = 0; i < BLADES; i++) {
+          const bx = cx * CHUNK + (hash2(cx * 13 + i, cz * 29 + i * 3) - 0.5) * CHUNK;
+          const bz = cz * CHUNK + (hash2(cx * 37 + i * 5, cz * 11 + i) - 0.5) * CHUNK;
+          const by = terrainHeight(bx, bz);
+          if (by < WATER_Y + 0.35) continue;
+          const s = 0.7 + hash2(bx, bz) * 0.7;
+          pv.set(bx, by, bz);
+          q.setFromAxisAngle(
+            new THREE.Vector3(0, 1, 0),
+            hash2(bz, bx) * Math.PI
+          );
+          sc.set(1, s, 1);
+          mtx.compose(pv, q, sc);
+          blades.setMatrixAt(placed++, mtx);
+        }
+        blades.count = placed;
+        blades.instanceMatrix.needsUpdate = true;
+        blades.frustumCulled = true;
+        g.add(blades);
       }
 
       // scatter props deterministically per chunk, themed per biome
@@ -1185,6 +1315,7 @@ export default function Game() {
       raf = requestAnimationFrame(frame);
       const dt = Math.min((now - last) / 1000, 0.05);
       last = now;
+      uTime.value = now / 1000;
       const p = progRef.current;
 
       let ix = 0, iz = 0;
@@ -1288,6 +1419,12 @@ export default function Game() {
       lantern.intensity =
         p.tools.includes("lantern") ? (1 - dl) * 2.2 : 0;
       if (dl < 0.03) award("night-owl");
+
+      if (DUST) {
+        dust.position.set(player.position.x, 0, player.position.z);
+        dust.rotation.y = now / 26000;
+        dustMat.opacity = 0.5 * dl; // motes only show where sunlight catches them
+      }
 
       fireflies.forEach((f, i) => {
         f.position.x += Math.cos(now / 900 + i * 2.1) * dt * 2;
@@ -1603,6 +1740,15 @@ export default function Game() {
       }
 
       renderer.render(scene, camera);
+
+      // Grab the frame in the same tick it was drawn, so the GL buffer is still
+      // valid without paying for preserveDrawingBuffer on every frame.
+      if (captureRef.current) {
+        captureRef.current = false;
+        try {
+          onCaptureRef.current?.(renderer.domElement.toDataURL("image/png"));
+        } catch {}
+      }
     }
     raf = requestAnimationFrame(frame);
 
@@ -1622,7 +1768,7 @@ export default function Game() {
       mount.removeChild(renderer.domElement);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hero]);
+  }, [hero, gfx]);
 
   // finish reading a story chapter: advance, reward, save
   function closeStory(accepted: boolean) {
@@ -1690,6 +1836,76 @@ export default function Game() {
     syncDecorRef.current?.();
     setProg({ ...p });
     save();
+  }
+
+  // Draw the raw frame, then the child's stickers, a soft frame and a caption.
+  async function composePhoto(raw: string) {
+    const img = new Image();
+    await new Promise((res, rej) => {
+      img.onload = res;
+      img.onerror = rej;
+      img.src = raw;
+    });
+    const c = document.createElement("canvas");
+    c.width = img.width;
+    c.height = img.height;
+    const g = c.getContext("2d");
+    if (!g) return raw;
+    g.drawImage(img, 0, 0);
+
+    const size = c.width * 0.1;
+    g.font = `${size}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",serif`;
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    placedStickers.forEach((s) => g.fillText(s.e, s.x * c.width, s.y * c.height));
+
+    const b = Math.max(8, c.width * 0.013);
+    g.strokeStyle = "#ffffff";
+    g.lineWidth = b;
+    g.strokeRect(b / 2, b / 2, c.width - b, c.height - b);
+
+    const cap = Math.max(16, c.width * 0.028);
+    g.font = `600 ${cap}px system-ui, sans-serif`;
+    g.textAlign = "right";
+    g.textBaseline = "alphabetic";
+    g.fillStyle = "rgba(0,0,0,0.45)";
+    g.fillText("Meadowfar", c.width - b * 2 + 2, c.height - b * 2 + 2);
+    g.fillStyle = "#ffffff";
+    g.fillText("Meadowfar", c.width - b * 2, c.height - b * 2);
+    return c.toDataURL("image/png");
+  }
+
+  function takePhoto() {
+    onCaptureRef.current = async (raw) => {
+      onCaptureRef.current = null;
+      try {
+        setPhoto(await composePhoto(raw));
+      } catch {
+        setPhoto(raw);
+      }
+    };
+    captureRef.current = true;
+  }
+
+  function savePhoto() {
+    if (!photo) return;
+    const a = document.createElement("a");
+    a.href = photo;
+    a.download = `meadowfar-${Date.now()}.png`;
+    a.click();
+  }
+
+  function exitPhoto() {
+    setPhotoMode(false);
+    setPhoto(null);
+    setPlacedStickers([]);
+  }
+
+  function changeGfx(next: "auto" | "low" | "high") {
+    setGfx(next);
+    try {
+      localStorage.setItem("meadowfar-gfx", next);
+    } catch {}
   }
 
   function goHome() {
@@ -1819,6 +2035,8 @@ export default function Game() {
   return (
     <div className="relative h-screen w-screen overflow-hidden">
       <div ref={mountRef} className="h-full w-full" />
+      {!photoMode && (
+        <>
       <div className="pointer-events-none absolute left-4 top-4 rounded-xl bg-black/45 px-4 py-3 text-white backdrop-blur">
         <p className="text-sm font-semibold">{questLine}</p>
         {questKind === "race" && raceGates && (
@@ -1887,13 +2105,49 @@ export default function Game() {
           {pick(lang, UI.music.id, UI.music.en)}: {musicOn ? pick(lang, UI.on.id, UI.on.en) : pick(lang, UI.off.id, UI.off.en)}
         </button>
         <button
+          onClick={() => setPhotoMode(true)}
+          className="rounded-xl bg-black/45 px-4 py-2 text-xs font-semibold text-pink-300 backdrop-blur"
+        >
+          {pick(lang, UI.photo.id, UI.photo.en)}
+        </button>
+        {isParent && (
+          <a
+            href="/orangtua"
+            className="rounded-xl bg-black/45 px-4 py-2 text-center text-xs font-semibold text-violet-300 backdrop-blur"
+          >
+            {pick(lang, UI.parentTitle.id, UI.parentTitle.en)}
+          </a>
+        )}
+        <div className="rounded-xl bg-black/45 px-3 py-2 text-xs text-white backdrop-blur">
+          <p className="mb-1 font-semibold">{pick(lang, UI.graphics.id, UI.graphics.en)}</p>
+          <div className="flex gap-1">
+            {(["auto", "low", "high"] as const).map((q) => (
+              <button
+                key={q}
+                onClick={() => changeGfx(q)}
+                className={`rounded-lg px-2 py-1 text-[10px] font-semibold ${
+                  gfx === q ? "bg-amber-400 text-amber-950" : "bg-white/20"
+                }`}
+              >
+                {q === "auto"
+                  ? pick(lang, UI.gfxAuto.id, UI.gfxAuto.en)
+                  : q === "low"
+                    ? pick(lang, UI.gfxLow.id, UI.gfxLow.en)
+                    : pick(lang, UI.gfxHigh.id, UI.gfxHigh.en)}
+              </button>
+            ))}
+          </div>
+        </div>
+        <button
           onClick={toggleLang}
           className="rounded-xl bg-black/45 px-4 py-2 text-xs font-semibold text-white backdrop-blur"
         >
           {lang === "id" ? "English" : "Bahasa Indonesia"}
         </button>
       </div>
-      {npcNear && !storyOpen && (
+        </>
+      )}
+      {npcNear && !storyOpen && !photoMode && (
         <button
           onClick={() => (talkRef.current = true)}
           onTouchStart={() => (talkRef.current = true)}
@@ -1902,7 +2156,7 @@ export default function Game() {
           {pick(lang, UI.talkElder.id, UI.talkElder.en)}
         </button>
       )}
-      {toast && (
+      {toast && !photoMode && (
         <div className="pointer-events-none absolute left-1/2 top-1/3 -translate-x-1/2 rounded-2xl bg-amber-400 px-8 py-4 text-lg font-bold text-amber-950 shadow-2xl">
           {toast}
         </div>
@@ -1933,6 +2187,126 @@ export default function Game() {
                 className="rounded-xl border border-amber-300 px-6 py-3 font-semibold"
               >
                 {pick(lang, UI.later.id, UI.later.en)}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {restOpen && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-sm rounded-3xl bg-amber-50 p-8 text-center text-amber-950 shadow-2xl">
+            <p className="text-4xl">🌙</p>
+            <h2 className="mt-3 text-2xl font-bold">
+              {pick(lang, UI.restTitle.id, UI.restTitle.en)}
+            </h2>
+            <p className="mt-3 leading-relaxed">{pick(lang, UI.restBody.id, UI.restBody.en)}</p>
+            <button
+              onClick={() => setRestOpen(false)}
+              className="mt-6 w-full rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white"
+            >
+              {pick(lang, UI.restOk.id, UI.restOk.en)}
+            </button>
+          </div>
+        </div>
+      )}
+      {photoMode && !photo && (
+        <>
+          {/* tap layer: places the selected sticker where the child touches */}
+          <div
+            className="absolute inset-0 z-10"
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              setPlacedStickers((s) => [
+                ...s,
+                {
+                  e: sticker,
+                  x: (e.clientX - r.left) / r.width,
+                  y: (e.clientY - r.top) / r.height,
+                },
+              ]);
+            }}
+          >
+            {placedStickers.map((s, i) => (
+              <span
+                key={i}
+                className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 select-none"
+                style={{
+                  left: `${s.x * 100}%`,
+                  top: `${s.y * 100}%`,
+                  fontSize: "10vw",
+                  lineHeight: 1,
+                }}
+              >
+                {s.e}
+              </span>
+            ))}
+          </div>
+          <div className="pointer-events-none absolute inset-0 z-20 border-[6px] border-white/70" />
+          <div className="absolute left-1/2 top-3 z-30 w-[92%] max-w-xl -translate-x-1/2 rounded-2xl bg-black/55 p-3 backdrop-blur">
+            <p className="text-center text-[11px] text-white/90">
+              {pick(lang, UI.photoHint.id, UI.photoHint.en)}
+            </p>
+            <div className="mt-2 flex flex-wrap justify-center gap-1">
+              {STICKERS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setSticker(s)}
+                  className={`rounded-lg px-2 py-1 text-xl ${
+                    sticker === s ? "bg-amber-400" : "bg-white/20"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-3">
+            <button
+              onClick={() => setPlacedStickers([])}
+              className="rounded-xl bg-black/55 px-4 py-2 text-xs font-semibold text-white backdrop-blur"
+            >
+              {pick(lang, UI.clearStickers.id, UI.clearStickers.en)}
+            </button>
+            <button
+              onClick={takePhoto}
+              className="h-16 w-16 rounded-full border-4 border-white bg-pink-500 text-2xl shadow-xl"
+              aria-label={pick(lang, UI.shutter.id, UI.shutter.en)}
+            >
+              📸
+            </button>
+            <button
+              onClick={exitPhoto}
+              className="rounded-xl bg-black/55 px-4 py-2 text-xs font-semibold text-white backdrop-blur"
+            >
+              {pick(lang, UI.exitPhoto.id, UI.exitPhoto.en)}
+            </button>
+          </div>
+        </>
+      )}
+      {photo && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/75 p-4">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-5 text-emerald-950 shadow-2xl">
+            <h2 className="text-lg font-bold">{pick(lang, UI.photoReady.id, UI.photoReady.en)}</h2>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={photo} alt="Meadowfar" className="mt-3 w-full rounded-xl" />
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                onClick={savePhoto}
+                className="flex-1 rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white"
+              >
+                {pick(lang, UI.savePhoto.id, UI.savePhoto.en)}
+              </button>
+              <button
+                onClick={() => setPhoto(null)}
+                className="rounded-xl border border-emerald-300 px-5 py-3 font-semibold"
+              >
+                {pick(lang, UI.retake.id, UI.retake.en)}
+              </button>
+              <button
+                onClick={exitPhoto}
+                className="rounded-xl border border-emerald-300 px-5 py-3 font-semibold"
+              >
+                {pick(lang, UI.exitPhoto.id, UI.exitPhoto.en)}
               </button>
             </div>
           </div>

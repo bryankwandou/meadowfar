@@ -21,7 +21,10 @@ Catatan jujur: daftar 50.000 butir tidak akan membantu siapa pun — yang pentin
 - [x] Tombol "Masuk dengan Google — segera hadir" (nonaktif)
 - [x] Akun uji QA dengan progres maksimum (di-seed dari env, kredensial tidak pernah masuk repo)
 - [ ] Ganti sandi / lupa sandi (butuh layanan email)
-- [ ] Dasbor orang tua untuk 12 akun anak
+- [x] Dasbor orang tua /orangtua: level, bab kisah, misi, item, prestasi, terakhir main tiap anak
+- [x] Batas waktu main harian per anak (0/30/45/60/90 menit) diatur orang tua, tersimpan di DB
+- [x] Pengingat istirahat lembut di game saat batas tercapai — mengingatkan, bukan mengunci
+- [x] Akses dasbor dijaga kolom users.is_parent (hanya diset skrip seed, bukan pendaftaran)
 - [x] Halaman /keluarga: semua penjelajah keluarga, aman dan tidak saling menjatuhkan
 
 ## Progression & gameplay
@@ -49,11 +52,15 @@ Catatan jujur: daftar 50.000 butir tidak akan membantu siapa pun — yang pentin
 - [x] Papan keluarga: level, bab kisah, jumlah item — urut abjad, tanpa peringkat
 - [x] Tiap bab kisah punya permintaan tetua yang nyambung ke jenis misi
 - [x] 6 prestasi baru (balapan, peti, kurir, rumah, pecahan bintang) — total 24
-- [ ] Mode foto
+- [x] Mode foto: stiker emoji ditempel dengan ketukan, bingkai putih, tanda "Meadowfar", simpan PNG
+- [x] Rumput bergoyang (instanced + shader), air danau beriak, debu cahaya siang
 
 ## Kualitas
 - [x] Build produksi lolos TypeScript ketat
 - [x] Deploy produksi terverifikasi setelah setiap fase
+- [x] Tingkat grafis Otomatis/Ringan/Indah — deteksi otomatis dari jumlah inti CPU dan lebar layar
+- [x] Mode ringan: bayangan mati, pixel ratio dibatasi 1.25, rumput & debu dilewati, air tanpa segmen
+- [x] Rumput pakai InstancedMesh (satu draw call per chunk), bukan mesh per helai
 - [ ] Uji perangkat nyata: Android murah, iPad, laptop sekolah
-- [ ] Target 60 fps di HP kelas bawah (LOD + instancing)
+- [ ] Ukur 60 fps di HP kelas bawah setelah uji perangkat
 - [ ] Uji beban API progress

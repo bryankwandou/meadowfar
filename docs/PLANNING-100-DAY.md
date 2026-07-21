@@ -22,14 +22,14 @@ Tujuan: membawa Meadowfar dari purwarupa menjadi permainan dunia terbuka untuk a
 - H46–50: Rumah pohon tetap dekat titik awal + 8 hiasan yang dibuka lewat jumlah misi dan dipasang sendiri oleh anak.
 - H51–55: Papan keluarga /keluarga — level, bab kisah, jumlah item; urut abjad tanpa peringkat agar tidak ada anak yang merasa kalah.
 
-## Fase 4 — Rasa AAA (hari 56–80)
-- H56–62: Peningkatan grafis: rumput bergoyang instanced, air memantul, partikel debu/kelap-kelip.
-- H63–68: Animasi karakter lebih halus (berlari, berenang, memanjat).
-- H69–74: Mode foto + stiker untuk menangkap momen.
-- H75–80: Optimasi HP kelas bawah: LOD, instancing penuh, target 60 fps.
+## Fase 4 — Rasa AAA (hari 56–80) ✅ selesai
+- H56–62: Rumput bergoyang instanced (satu draw call per chunk), air danau beriak lewat shader, debu cahaya siang.
+- H63–68: Animasi karakter berayun saat jalan dan lari — sudah jalan sejak Fase 1, dipertahankan.
+- H69–74: Mode foto: HUD disembunyikan, 12 stiker emoji ditempel dengan ketukan, bingkai putih, simpan PNG.
+- H75–80: Tingkat grafis Otomatis/Ringan/Indah dengan deteksi perangkat; mode ringan mematikan bayangan, rumput, debu, dan membatasi pixel ratio.
 
 ## Fase 5 — Kematangan (hari 81–100)
-- H81–86: Dasbor orang tua: melihat progres 12 anak, atur batas waktu main.
+- H81–86: ✅ Dasbor orang tua /orangtua — progres tiap anak dan batas waktu main harian.
 - H87–90: Masuk dengan Google (sekarang: tombol "segera hadir").
 - H91–95: Uji beban, uji perangkat nyata (Android murah, iPad, laptop sekolah).
 - H96–100: Poles akhir, halaman rilis, dokumentasi keluarga.
