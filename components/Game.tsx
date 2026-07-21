@@ -7,12 +7,14 @@ import {
   SKILLS,
   TOOLS,
   PETS,
+  DECORS,
   ACHIEVEMENTS,
   levelFromXp,
   xpForLevel,
   defaultProgress,
   sanitizeProgress,
   applyUnlocks,
+  earnedDecors,
   type HeroId,
   type Progress,
 } from "@/lib/progression";
@@ -64,12 +66,23 @@ const QUEST_NOUNS = [
 const GUEST_KEY = "meadowfar-progress";
 const DAY_SECONDS = 240; // full day-night cycle length
 
+// Quest variety: the rotation keeps play from turning into one long fetch loop.
+type QuestKind = "collect" | "race" | "treasure" | "delivery" | "shard";
+const QUEST_ROTATION: QuestKind[] = [
+  "collect", "race", "collect", "treasure",
+  "collect", "delivery", "race", "shard",
+];
+
 export default function Game() {
   const mountRef = useRef<HTMLDivElement>(null);
   const [hero, setHero] = useState<HeroId | null>(null);
   const [lang, setLang] = useState<Lang>("en");
   const langRef = useRef<Lang>("en");
   const [questData, setQuestData] = useState<{ num: number; need: number; noun: string } | null>(null);
+  const [questKind, setQuestKind] = useState<QuestKind>("collect");
+  const [raceTime, setRaceTime] = useState<number | null>(null);
+  const [raceGates, setRaceGates] = useState<{ done: number; total: number } | null>(null);
+  const [showHome, setShowHome] = useState(false);
   const [progressText, setProgressText] = useState("");
   const [score, setScore] = useState(0);
   const [toast, setToast] = useState("");
@@ -88,6 +101,8 @@ export default function Game() {
   const progRef = useRef<Progress>(defaultProgress());
   const userRef = useRef<string | null>(null);
   const musicRef = useRef(true);
+  const syncDecorRef = useRef<(() => void) | null>(null);
+  const goHomeRef = useRef<(() => void) | null>(null);
   const toastQueue = useRef<string[]>([]);
   const toastBusy = useRef(false);
 
@@ -715,41 +730,419 @@ export default function Game() {
       return { g, elder };
     }
 
-    // ---------- quests + collectibles ----------
+    // ---------- the player's tree house: a fixed home that grows with them ----------
+    const HOME_X = 14;
+    const HOME_Z = -10;
+    const homeY = terrainHeight(HOME_X, HOME_Z);
+    const treeHouse = new THREE.Group();
+    {
+      const bark = new THREE.MeshStandardMaterial({ color: 0x7a4d2b });
+      const leaf = new THREE.MeshStandardMaterial({ color: 0x2e8b46 });
+      const plank = new THREE.MeshStandardMaterial({ color: 0xc98a4b });
+      const roofMat = new THREE.MeshStandardMaterial({ color: 0xd05a3a });
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.5, 7, 8), bark);
+      trunk.position.y = 3.5;
+      trunk.castShadow = true;
+      const canopy = new THREE.Mesh(new THREE.SphereGeometry(4.6, 10, 9), leaf);
+      canopy.position.y = 9.5;
+      canopy.castShadow = true;
+      const deck = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, 0.3, 10), plank);
+      deck.position.y = 5.2;
+      deck.receiveShadow = true;
+      const cabin = new THREE.Mesh(new THREE.BoxGeometry(3, 2.4, 3), plank);
+      cabin.position.set(0, 6.5, 0);
+      cabin.castShadow = true;
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(2.7, 1.6, 4), roofMat);
+      roof.rotation.y = Math.PI / 4;
+      roof.position.y = 8.5;
+      const door = new THREE.Mesh(
+        new THREE.BoxGeometry(0.9, 1.4, 0.1),
+        new THREE.MeshStandardMaterial({ color: 0x8a5a2b })
+      );
+      door.position.set(0, 6.0, 1.52);
+      // ladder up the trunk
+      for (let i = 0; i < 6; i++) {
+        const rung = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.12, 0.12), plank);
+        rung.position.set(0, 0.9 + i * 0.75, 1.5);
+        treeHouse.add(rung);
+      }
+      treeHouse.add(trunk, canopy, deck, cabin, roof, door);
+      treeHouse.position.set(HOME_X, homeY, HOME_Z);
+      scene.add(treeHouse);
+    }
+
+    // each decoration is built once and simply shown/hidden as the child places it
+    const decorMeshes = new Map<string, THREE.Object3D>();
+    function buildDecor(id: string): THREE.Object3D {
+      const g = new THREE.Group();
+      if (id === "flag") {
+        const pole = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.06, 0.06, 2.2, 6),
+          new THREE.MeshStandardMaterial({ color: 0xdcd0b8 })
+        );
+        pole.position.set(2.4, 6.3, 0);
+        g.add(pole);
+        [0xff6b6b, 0xffd447, 0x6bd0ff].forEach((c, i) => {
+          const cloth2 = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.9, 0.5),
+            new THREE.MeshStandardMaterial({ color: c, side: THREE.DoubleSide })
+          );
+          cloth2.position.set(2.9, 7.0 - i * 0.55, 0);
+          g.add(cloth2);
+        });
+      } else if (id === "pot") {
+        for (let i = 0; i < 3; i++) {
+          const a = (i / 3) * Math.PI * 2;
+          const pot = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.32, 0.24, 0.45, 8),
+            new THREE.MeshStandardMaterial({ color: 0xc06a4a })
+          );
+          pot.position.set(Math.cos(a) * 2.5, 5.55, Math.sin(a) * 2.5);
+          const bloom = new THREE.Mesh(
+            new THREE.SphereGeometry(0.28, 7, 7),
+            new THREE.MeshStandardMaterial({ color: [0xff8fb3, 0xffd447, 0xb28fff][i] })
+          );
+          bloom.position.set(Math.cos(a) * 2.5, 5.95, Math.sin(a) * 2.5);
+          g.add(pot, bloom);
+        }
+      } else if (id === "lights") {
+        for (let i = 0; i < 14; i++) {
+          const a = (i / 14) * Math.PI * 2;
+          const bulb = new THREE.Mesh(
+            new THREE.SphereGeometry(0.13, 6, 6),
+            new THREE.MeshStandardMaterial({
+              color: 0xfff0b0, emissive: 0xffc94a, emissiveIntensity: 1.2,
+            })
+          );
+          bulb.position.set(
+            Math.cos(a) * 3.1,
+            5.6 + Math.sin(a * 3) * 0.22,
+            Math.sin(a) * 3.1
+          );
+          g.add(bulb);
+        }
+        const warm = new THREE.PointLight(0xffc94a, 1.4, 14);
+        warm.position.set(0, 6, 0);
+        g.add(warm);
+      } else if (id === "swing") {
+        const rope = new THREE.MeshStandardMaterial({ color: 0xd8c9a8 });
+        const r1 = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 3.2, 5), rope);
+        r1.position.set(-0.5, 3.4, 3.4);
+        const r2 = r1.clone();
+        r2.position.x = 0.5;
+        const seat = new THREE.Mesh(
+          new THREE.BoxGeometry(1.4, 0.16, 0.5),
+          new THREE.MeshStandardMaterial({ color: 0x8a5a2b })
+        );
+        seat.position.set(0, 1.85, 3.4);
+        g.add(r1, r2, seat);
+      } else if (id === "chime") {
+        const bar = new THREE.MeshStandardMaterial({ color: 0xd7dde6, metalness: 0.6 });
+        for (let i = 0; i < 5; i++) {
+          const tube = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.07, 0.07, 0.7 + i * 0.12, 6),
+            bar
+          );
+          tube.position.set(-1.6 + i * 0.22, 5.7 - i * 0.05, 1.7);
+          g.add(tube);
+        }
+      } else if (id === "telescope") {
+        const body = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.22, 0.3, 1.8, 10),
+          new THREE.MeshStandardMaterial({ color: 0x3a4a6a, metalness: 0.5 })
+        );
+        body.rotation.z = Math.PI / 5;
+        body.rotation.x = -Math.PI / 7;
+        body.position.set(-2.2, 6.3, 1.0);
+        const tri = new THREE.Mesh(
+          new THREE.ConeGeometry(0.5, 1.2, 3),
+          new THREE.MeshStandardMaterial({ color: 0x6a5a4a })
+        );
+        tri.position.set(-2.2, 5.7, 1.0);
+        g.add(body, tri);
+      } else if (id === "gnome") {
+        const gh = new THREE.Mesh(
+          new THREE.ConeGeometry(0.3, 0.6, 8),
+          new THREE.MeshStandardMaterial({ color: 0xe14b4b })
+        );
+        gh.position.set(2.0, 1.1, 2.6);
+        const gb = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.26, 0.32, 0.55, 8),
+          new THREE.MeshStandardMaterial({ color: 0x4b8fe1 })
+        );
+        gb.position.set(2.0, 0.55, 2.6);
+        const gbeard = new THREE.Mesh(
+          new THREE.ConeGeometry(0.2, 0.4, 6),
+          new THREE.MeshStandardMaterial({ color: 0xf2f2f2 })
+        );
+        gbeard.position.set(2.0, 0.68, 2.78);
+        g.add(gh, gb, gbeard);
+      } else {
+        // banner
+        const cloth2 = new THREE.Mesh(
+          new THREE.PlaneGeometry(3.4, 1.1),
+          new THREE.MeshStandardMaterial({ color: 0x7b4fd0, side: THREE.DoubleSide })
+        );
+        cloth2.position.set(0, 8.0, 1.7);
+        const star = new THREE.Mesh(
+          new THREE.OctahedronGeometry(0.4),
+          new THREE.MeshStandardMaterial({
+            color: 0xffd447, emissive: 0xffb300, emissiveIntensity: 0.7,
+          })
+        );
+        star.position.set(0, 8.0, 1.85);
+        g.add(cloth2, star);
+      }
+      g.visible = false;
+      treeHouse.add(g);
+      return g;
+    }
+    DECORS.forEach((d) => decorMeshes.set(d.id, buildDecor(d.id)));
+    function syncDecor() {
+      const placed = progRef.current.placedDecors;
+      decorMeshes.forEach((mesh, id) => {
+        mesh.visible = placed.includes(id);
+      });
+    }
+    syncDecor();
+    syncDecorRef.current = syncDecor;
+    // walking home from the far snowfields would be a long, sad trip for a kid
+    goHomeRef.current = () => {
+      player.position.set(HOME_X + 5, terrainHeight(HOME_X + 5, HOME_Z + 6), HOME_Z + 6);
+    };
+
+    // ---------- quests: five kinds, rotating so play stays fresh ----------
     let questIdx = 0;
+    let kind: QuestKind = "collect";
     let need = 0;
     let got = 0;
     let items: THREE.Mesh[] = [];
+    let gates: THREE.Group[] = [];       // race: pass through in order
+    let gateIdx = 0;
+    let raceEndsAt = 0;                  // ms timestamp; 0 when not racing
+    let target: THREE.Group | null = null; // treasure chest / delivery house / shard altar
 
-    function clearItems() {
+    // pick a walkable spot at a given distance from the player
+    function spotNear(minD: number, maxD: number) {
+      for (let tries = 0; tries < 12; tries++) {
+        const ang = rand() * Math.PI * 2;
+        const dist = minD + rand() * (maxD - minD);
+        const x = player.position.x + Math.cos(ang) * dist;
+        const z = player.position.z + Math.sin(ang) * dist;
+        if (terrainHeight(x, z) > WATER_Y + 0.4) return { x, z };
+      }
+      return { x: player.position.x + minD, z: player.position.z };
+    }
+
+    function clearQuestObjects() {
       items.forEach((m) => scene.remove(m));
       items = [];
+      gates.forEach((g) => scene.remove(g));
+      gates = [];
+      if (target) {
+        scene.remove(target);
+        target = null;
+      }
+      raceEndsAt = 0;
+      setRaceTime(null);
+      setRaceGates(null);
     }
+
+    // a glowing ring the player runs through during a race
+    function buildGate(x: number, z: number, n: number) {
+      const g = new THREE.Group();
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(2.2, 0.22, 8, 20),
+        new THREE.MeshStandardMaterial({
+          color: 0x59d0ff, emissive: 0x2f9fd0, emissiveIntensity: 0.8,
+        })
+      );
+      ring.position.y = 2.4;
+      const post = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.16, 0.16, 2.4, 6),
+        new THREE.MeshStandardMaterial({ color: 0xe8d7a8 })
+      );
+      post.position.y = 1.2;
+      g.add(ring, post);
+      g.position.set(x, terrainHeight(x, z), z);
+      g.userData.n = n;
+      scene.add(g);
+      return g;
+    }
+
+    function buildChest(x: number, z: number) {
+      const g = new THREE.Group();
+      const wood = new THREE.MeshStandardMaterial({ color: 0x8a5a2b });
+      const gold = new THREE.MeshStandardMaterial({
+        color: 0xffd447, emissive: 0xffb300, emissiveIntensity: 0.5,
+      });
+      const box = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.0, 1.1), wood);
+      box.position.y = 0.5;
+      box.castShadow = true;
+      const lid = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.35, 1.2), gold);
+      lid.position.y = 1.15;
+      const mark = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.05, 1.9), gold);
+      mark.position.y = 0.02;
+      mark.rotation.y = Math.PI / 4;
+      const mark2 = mark.clone();
+      mark2.rotation.y = -Math.PI / 4;
+      g.add(box, lid, mark, mark2);
+      g.position.set(x, terrainHeight(x, z), z);
+      scene.add(g);
+      return g;
+    }
+
+    // package the player carries to a village, and the glowing drop-off marker
+    function buildDropoff(x: number, z: number) {
+      const g = new THREE.Group();
+      const pad = new THREE.Mesh(
+        new THREE.CylinderGeometry(2.2, 2.2, 0.2, 16),
+        new THREE.MeshStandardMaterial({
+          color: 0x6ee07a, emissive: 0x2fa04a, emissiveIntensity: 0.6,
+          transparent: true, opacity: 0.85,
+        })
+      );
+      const parcel = new THREE.Mesh(
+        new THREE.BoxGeometry(1, 1, 1),
+        new THREE.MeshStandardMaterial({ color: 0xc98a3b })
+      );
+      parcel.position.y = 0.7;
+      parcel.castShadow = true;
+      const ribbon = new THREE.Mesh(
+        new THREE.BoxGeometry(1.08, 0.14, 1.08),
+        new THREE.MeshStandardMaterial({ color: 0xe14b7a })
+      );
+      ribbon.position.y = 0.7;
+      g.add(pad, parcel, ribbon);
+      g.position.set(x, terrainHeight(x, z) + 0.1, z);
+      scene.add(g);
+      return g;
+    }
+
+    // altar where a recovered star shard is returned
+    function buildAltar(x: number, z: number) {
+      const g = new THREE.Group();
+      const stone = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.4, 1.7, 1.2, 8),
+        new THREE.MeshStandardMaterial({ color: 0xbfb8a8, flatShading: true })
+      );
+      stone.position.y = 0.6;
+      stone.castShadow = true;
+      const shard = new THREE.Mesh(
+        new THREE.OctahedronGeometry(0.8),
+        new THREE.MeshStandardMaterial({
+          color: 0xfff0a0, emissive: 0xffd447, emissiveIntensity: 1.1,
+        })
+      );
+      shard.position.y = 2.2;
+      g.userData.shard = shard;
+      const glow = new THREE.PointLight(0xffd447, 2.2, 18);
+      glow.position.y = 2.2;
+      g.add(stone, shard, glow);
+      g.position.set(x, terrainHeight(x, z), z);
+      scene.add(g);
+      return g;
+    }
+
     function newQuest() {
-      clearItems();
-      const [noun, color] = QUEST_NOUNS[questIdx % QUEST_NOUNS.length];
+      clearQuestObjects();
+      kind = QUEST_ROTATION[questIdx % QUEST_ROTATION.length];
       questIdx++;
-      need = 4 + Math.floor(rand() * 4);
       got = 0;
+      setQuestKind(kind);
+
+      if (kind === "race") {
+        const total = 4 + Math.floor(rand() * 3);
+        let cx = player.position.x;
+        let cz = player.position.z;
+        const dir = rand() * Math.PI * 2;
+        for (let i = 0; i < total; i++) {
+          const a = dir + (rand() - 0.5) * 1.6;
+          cx += Math.cos(a) * (18 + rand() * 10);
+          cz += Math.sin(a) * (18 + rand() * 10);
+          if (terrainHeight(cx, cz) < WATER_Y + 0.4) {
+            cx -= Math.cos(a) * 12;
+            cz -= Math.sin(a) * 12;
+          }
+          gates.push(buildGate(cx, cz, i));
+        }
+        gateIdx = 0;
+        need = total;
+        // generous timer: fun to beat, never punishing for a small child
+        const seconds = 22 + total * 9;
+        raceEndsAt = performance.now() + seconds * 1000;
+        setRaceGates({ done: 0, total });
+        setRaceTime(seconds);
+        setQuestData({ num: questIdx, need: total, noun: "race" });
+        setProgressText(`0 / ${total}`);
+        return;
+      }
+
+      if (kind === "treasure") {
+        const s = spotNear(35, 70);
+        target = buildChest(s.x, s.z);
+        need = 1;
+        setQuestData({ num: questIdx, need: 1, noun: "treasure" });
+        setProgressText("");
+        return;
+      }
+
+      if (kind === "delivery") {
+        const s = spotNear(30, 60);
+        target = buildDropoff(s.x, s.z);
+        need = 1;
+        setQuestData({ num: questIdx, need: 1, noun: "delivery" });
+        setProgressText("");
+        return;
+      }
+
+      if (kind === "shard") {
+        const s = spotNear(28, 55);
+        target = buildAltar(s.x, s.z);
+        need = 1;
+        setQuestData({ num: questIdx, need: 1, noun: "shard" });
+        setProgressText("");
+        return;
+      }
+
+      // default: collect
+      const [noun, color] = QUEST_NOUNS[questIdx % QUEST_NOUNS.length];
+      need = 4 + Math.floor(rand() * 4);
       const mat = new THREE.MeshStandardMaterial({
         color, emissive: color, emissiveIntensity: 0.55,
       });
       for (let i = 0; i < need; i++) {
         const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.55), mat);
-        const ang = rand() * Math.PI * 2;
-        const dist = 14 + rand() * 45;
-        let x = player.position.x + Math.cos(ang) * dist;
-        let z = player.position.z + Math.sin(ang) * dist;
-        if (terrainHeight(x, z) < WATER_Y) {
-          x = player.position.x + Math.cos(ang) * 12;
-          z = player.position.z + Math.sin(ang) * 12;
-        }
-        m.position.set(x, terrainHeight(x, z) + 1.4, z);
+        const s = spotNear(14, 59);
+        m.position.set(s.x, terrainHeight(s.x, s.z) + 1.4, s.z);
         scene.add(m);
         items.push(m);
       }
       setQuestData({ num: questIdx, need, noun });
       setProgressText(`0 / ${need}`);
+    }
+
+    // shared reward path for every quest kind
+    function completeQuest(bonusXp: number) {
+      const p = progRef.current;
+      p.missionsDone++;
+      gainXp(bonusXp);
+      award("quest-1");
+      if (p.missionsDone >= 10) award("quest-10");
+      if (p.missionsDone >= 50) award("quest-50");
+      // decorations unlock steadily as quests pile up
+      const earned = earnedDecors(p.missionsDone);
+      const fresh = earned.filter((d) => !p.decors.includes(d));
+      if (fresh.length) {
+        p.decors = [...new Set([...p.decors, ...earned])];
+        fresh.forEach((id) => {
+          const def = DECORS.find((d) => d.id === id)!;
+          pushToast(t(UI.newGear, nm(def)));
+        });
+      }
+      setProg({ ...p });
+      save();
+      newQuest();
     }
     newQuest();
 
@@ -1109,16 +1502,104 @@ export default function Game() {
           }
           setProgressText(`${got} / ${need}`);
           if (got >= need) {
-            p.missionsDone++;
-            gainXp(30);
-            award("quest-1");
-            if (p.missionsDone >= 10) award("quest-10");
-            if (p.missionsDone >= 50) award("quest-50");
             pushToast(t(UI.missionDone));
-            save();
-            newQuest();
+            completeQuest(30);
           }
         }
+      }
+
+      // ---------- race: run the gates in order before the timer runs out ----------
+      if (kind === "race" && raceEndsAt) {
+        const leftMs = raceEndsAt - now;
+        setRaceTime(Math.max(0, Math.ceil(leftMs / 1000)));
+        gates.forEach((g, i) => {
+          const passed = i < gateIdx;
+          g.rotation.y += dt * (passed ? 0.4 : 1.6);
+          const ring = g.children[0] as THREE.Mesh;
+          const m = ring.material as THREE.MeshStandardMaterial;
+          // the next gate glows gold so kids always know where to run
+          m.color.setHex(passed ? 0x6f8fa0 : i === gateIdx ? 0xffd447 : 0x59d0ff);
+          m.emissiveIntensity = i === gateIdx ? 1.2 : 0.4;
+        });
+        const nextGate = gates[gateIdx];
+        if (nextGate) {
+          const d = Math.hypot(
+            nextGate.position.x - player.position.x,
+            nextGate.position.z - player.position.z
+          );
+          if (d < 3.2) {
+            gateIdx++;
+            got = gateIdx;
+            chime(700 + gateIdx * 60);
+            setRaceGates({ done: gateIdx, total: need });
+            setProgressText(`${gateIdx} / ${need}`);
+            if (gateIdx >= gates.length) {
+              p.racesWon++;
+              award("race-1");
+              if (p.racesWon >= 10) award("race-10");
+              pushToast(t(UI.raceWon));
+              completeQuest(45);
+            }
+          }
+        }
+        if (raceEndsAt && leftMs <= 0) {
+          pushToast(t(UI.raceLost));
+          newQuest(); // no penalty — just roll a fresh adventure
+        }
+      }
+
+      // ---------- treasure / delivery / shard: reach the marked spot ----------
+      if (target && (kind === "treasure" || kind === "delivery" || kind === "shard")) {
+        const d = Math.hypot(
+          target.position.x - player.position.x,
+          target.position.z - player.position.z
+        );
+        if (kind === "shard") {
+          const shard = target.userData.shard as THREE.Mesh | undefined;
+          if (shard) {
+            shard.rotation.y += dt * 1.5;
+            shard.position.y = 2.2 + Math.sin(now / 400) * 0.25;
+          }
+        } else {
+          target.rotation.y += dt * 0.6;
+        }
+        if (d < 3.4) {
+          if (kind === "treasure") {
+            p.treasuresFound++;
+            award("treasure-1");
+            localScore += 60 + toolBonus() * 3;
+            setScore(localScore);
+            if (localScore > p.bestScore) p.bestScore = localScore;
+            pushToast(t(UI.treasureFound));
+            completeQuest(60);
+          } else if (kind === "delivery") {
+            p.deliveries++;
+            award("delivery-1");
+            pushToast(t(UI.deliveryDone));
+            completeQuest(40);
+          } else {
+            p.starQuests = Math.min(12, p.starQuests + 1);
+            if (p.starQuests >= 3) award("starquest-3");
+            pushToast(t(UI.starShardDone));
+            completeQuest(70);
+          }
+        }
+      }
+
+      // compass points at whatever the current quest wants
+      const guide =
+        kind === "race"
+          ? gates[gateIdx]?.position
+          : target
+            ? target.position
+            : null;
+      if (guide) {
+        setArrow(
+          Math.atan2(
+            guide.x - player.position.x,
+            -(guide.z - player.position.z)
+          )
+        );
       }
 
       renderer.render(scene, camera);
@@ -1183,6 +1664,37 @@ export default function Game() {
     try {
       localStorage.setItem("meadowfar-music", next ? "on" : "off");
     } catch {}
+  }
+
+  function toggleDecor(id: string) {
+    const p = progRef.current;
+    if (!p.decors.includes(id)) return;
+    const placed = p.placedDecors.includes(id);
+    p.placedDecors = placed
+      ? p.placedDecors.filter((d) => d !== id)
+      : [...p.placedDecors, id];
+    if (!placed) {
+      const def = DECORS.find((d) => d.id === id)!;
+      const name = lang === "id" ? def.nama : def.namaEn;
+      pushToast((lang === "id" ? UI.homePlaced.id : UI.homePlaced.en)(name));
+      if (!p.achievements.includes("home-1")) {
+        p.achievements = [...p.achievements, "home-1"];
+        const a = ACHIEVEMENTS.find((x) => x.id === "home-1")!;
+        pushToast(
+          (lang === "id" ? UI.achievementUnlocked.id : UI.achievementUnlocked.en)(
+            lang === "id" ? a.nama : a.namaEn
+          )
+        );
+      }
+    }
+    syncDecorRef.current?.();
+    setProg({ ...p });
+    save();
+  }
+
+  function goHome() {
+    goHomeRef.current?.();
+    setShowHome(false);
   }
 
   function choosePet(id: string) {
@@ -1284,16 +1796,46 @@ export default function Game() {
   const nounName = questData
     ? (QUEST_NOUN_NAMES[questData.noun]?.[lang] ?? questData.noun)
     : "";
-  const questLine = questData
-    ? (lang === "id" ? UI.mission.id : UI.mission.en)(questData.num, questData.need, nounName)
-    : "";
+  let questLine = "";
+  if (questData) {
+    if (questKind === "race")
+      questLine = (lang === "id" ? UI.raceTitle.id : UI.raceTitle.en)(
+        raceTime ?? 0
+      );
+    else if (questKind === "treasure")
+      questLine = pick(lang, UI.treasureTitle.id, UI.treasureTitle.en);
+    else if (questKind === "delivery")
+      questLine = pick(lang, UI.deliveryTitle.id, UI.deliveryTitle.en);
+    else if (questKind === "shard")
+      questLine = pick(lang, UI.starShardTitle.id, UI.starShardTitle.en);
+    else
+      questLine = (lang === "id" ? UI.mission.id : UI.mission.en)(
+        questData.num,
+        questData.need,
+        nounName
+      );
+  }
 
   return (
     <div className="relative h-screen w-screen overflow-hidden">
       <div ref={mountRef} className="h-full w-full" />
       <div className="pointer-events-none absolute left-4 top-4 rounded-xl bg-black/45 px-4 py-3 text-white backdrop-blur">
         <p className="text-sm font-semibold">{questLine}</p>
-        <p className="text-xs opacity-80">{pick(lang, UI.collected.id, UI.collected.en)}: {progressText}</p>
+        {questKind === "race" && raceGates && (
+          <p className="text-xs font-bold text-sky-300">
+            {(lang === "id" ? UI.raceTimeLeft.id : UI.raceTimeLeft.en)(raceTime ?? 0)}
+            {" · "}
+            {(lang === "id" ? UI.raceGates.id : UI.raceGates.en)(
+              raceGates.done,
+              raceGates.total
+            )}
+          </p>
+        )}
+        {progressText && (
+          <p className="text-xs opacity-80">
+            {pick(lang, UI.collected.id, UI.collected.en)}: {progressText}
+          </p>
+        )}
         <p className="mt-1 text-xs opacity-80">{pick(lang, UI.scoreLbl.id, UI.scoreLbl.en)}: {score}</p>
         <p className="text-xs opacity-80">{pick(lang, UI.bestLbl.id, UI.bestLbl.en)}: {prog.bestScore}</p>
         <p className="text-xs opacity-80">
@@ -1326,6 +1868,18 @@ export default function Game() {
         >
           {pick(lang, UI.book.id, UI.book.en)}
         </button>
+        <button
+          onClick={() => setShowHome(true)}
+          className="rounded-xl bg-black/45 px-4 py-2 text-xs font-semibold text-lime-300 backdrop-blur"
+        >
+          {pick(lang, UI.home.id, UI.home.en)}
+        </button>
+        <a
+          href="/keluarga"
+          className="rounded-xl bg-black/45 px-4 py-2 text-center text-xs font-semibold text-sky-300 backdrop-blur"
+        >
+          {pick(lang, UI.leaderboard.id, UI.leaderboard.en)}
+        </a>
         <button
           onClick={toggleMusic}
           className="rounded-xl bg-black/45 px-4 py-2 text-xs font-semibold text-white backdrop-blur"
@@ -1361,6 +1915,12 @@ export default function Game() {
             </p>
             <h2 className="mt-1 text-2xl font-bold">{pick(lang, chapter.judul, chapter.judulEn)}</h2>
             <p className="mt-4 leading-relaxed">{pick(lang, chapter.teks, chapter.teksEn)}</p>
+            <div className="mt-4 rounded-2xl bg-violet-100 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">
+                {pick(lang, UI.elderTask.id, UI.elderTask.en)}
+              </p>
+              <p className="mt-1 text-sm">{pick(lang, chapter.tugas, chapter.tugasEn)}</p>
+            </div>
             <div className="mt-6 flex gap-3">
               <button
                 onClick={() => closeStory(true)}
@@ -1374,6 +1934,63 @@ export default function Game() {
               >
                 {pick(lang, UI.later.id, UI.later.en)}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showHome && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 p-4">
+          <div className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6 text-emerald-950 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold">{pick(lang, UI.home.id, UI.home.en)}</h2>
+              <button
+                onClick={() => setShowHome(false)}
+                className="rounded-full bg-emerald-100 px-4 py-1 font-semibold"
+              >
+                {pick(lang, UI.close.id, UI.close.en)}
+              </button>
+            </div>
+            <p className="mt-2 text-sm text-emerald-700">
+              {pick(lang, UI.homeIntro.id, UI.homeIntro.en)}
+            </p>
+            <button
+              onClick={goHome}
+              className="mt-4 w-full rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white"
+            >
+              {pick(lang, UI.goHome.id, UI.goHome.en)}
+            </button>
+            <h3 className="mt-5 font-semibold">
+              {pick(lang, UI.decorations.id, UI.decorations.en)} (
+              {prog.placedDecors.length}/{DECORS.length})
+            </h3>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {DECORS.map((d) => {
+                const owned = prog.decors.includes(d.id);
+                const placed = prog.placedDecors.includes(d.id);
+                return (
+                  <button
+                    key={d.id}
+                    disabled={!owned}
+                    onClick={() => toggleDecor(d.id)}
+                    className={`rounded-xl border px-4 py-3 text-left text-sm font-semibold transition ${
+                      placed
+                        ? "border-emerald-600 bg-emerald-600 text-white"
+                        : owned
+                          ? "border-emerald-300 text-emerald-800 hover:bg-emerald-50"
+                          : "border-emerald-100 text-emerald-300"
+                    }`}
+                  >
+                    {lang === "id" ? d.nama : d.namaEn}
+                    <span className="mt-0.5 block text-xs font-normal">
+                      {!owned
+                        ? (lang === "id" ? UI.decorLockedAt.id : UI.decorLockedAt.en)(d.missions)
+                        : placed
+                          ? pick(lang, UI.remove.id, UI.remove.en)
+                          : pick(lang, UI.place.id, UI.place.en)}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
