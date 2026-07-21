@@ -97,4 +97,64 @@ export const UI = {
   newGear: { id: (n: string) => `Perlengkapan baru: ${n}`, en: (n: string) => `New gear: ${n}` },
   newPet: { id: (n: string) => `Sahabat baru mengikutimu: ${n}`, en: (n: string) => `A new friend follows you: ${n}` },
   achievementUnlocked: { id: (n: string) => `Prestasi terbuka: ${n}`, en: (n: string) => `Achievement unlocked: ${n}` },
+
+  // ----- mission types -----
+  questKindCollect: { id: "Kumpul", en: "Collect" },
+  raceTitle: {
+    id: (s: number) => `Balapan! Lewati semua gerbang dalam ${s} detik`,
+    en: (s: number) => `Race! Pass every gate within ${s} seconds`,
+  },
+  raceTimeLeft: { id: (s: number) => `Waktu: ${s} dtk`, en: (s: number) => `Time: ${s}s` },
+  raceGates: { id: (a: number, b: number) => `Gerbang ${a}/${b}`, en: (a: number, b: number) => `Gates ${a}/${b}` },
+  raceWon: { id: "Balapan menang! Hebat!", en: "Race won! Amazing!" },
+  raceLost: { id: "Waktu habis — coba lagi kapan saja!", en: "Time's up — try again anytime!" },
+  treasureTitle: {
+    id: "Ikuti tanda X — temukan peti harta karun!",
+    en: "Follow the X — find the treasure chest!",
+  },
+  treasureFound: { id: "Peti harta ditemukan! Isinya berkilau!", en: "Treasure chest found! It sparkles!" },
+  deliveryTitle: {
+    id: "Antar paket ke rumah bertanda di desa",
+    en: "Deliver the package to the marked house in the village",
+  },
+  deliveryDone: { id: "Paket sampai! Terima kasih, kurir!", en: "Package delivered! Thank you, courier!" },
+  starShardTitle: {
+    id: "Misi tetua: kembalikan pecahan bintang ke desa",
+    en: "Elder's quest: return the star shard to the village",
+  },
+  starShardDone: {
+    id: "Pecahan bintang kembali! Langit makin terang.",
+    en: "The star shard is home! The sky grows brighter.",
+  },
+  nextQuest: { id: "Misi berikutnya", en: "Next quest" },
+  questTypeBtn: { id: "Ganti jenis misi", en: "Change quest type" },
+
+  // ----- tree house / home -----
+  home: { id: "Rumah pohon", en: "Tree house" },
+  homeIntro: {
+    id: "Rumah pohonmu tumbuh bersamamu. Selesaikan misi untuk membuka hiasan, lalu pasang di sini.",
+    en: "Your tree house grows with you. Finish quests to unlock decorations, then place them here.",
+  },
+  goHome: { id: "Ke rumah pohon", en: "Go to tree house" },
+  decorations: { id: "Hiasan", en: "Decorations" },
+  place: { id: "Pasang", en: "Place" },
+  remove: { id: "Lepas", en: "Remove" },
+  locked: { id: "Terkunci", en: "Locked" },
+  decorLockedAt: { id: (m: number) => `Buka setelah ${m} misi`, en: (m: number) => `Unlocks after ${m} quests` },
+  homePlaced: { id: (n: string) => `${n} terpasang di rumah pohon!`, en: (n: string) => `${n} placed on the tree house!` },
+
+  // ----- leaderboard -----
+  leaderboard: { id: "Papan keluarga", en: "Family board" },
+  leaderboardSub: {
+    id: "Semua penjelajah di keluarga ini. Bukan lomba — setiap petualangan berharga.",
+    en: "Every explorer in this family. Not a race — every adventure counts.",
+  },
+  leaderboardEmpty: { id: "Belum ada penjelajah lain.", en: "No other explorers yet." },
+  colExplorer: { id: "Penjelajah", en: "Explorer" },
+  colLevel: { id: "Level", en: "Level" },
+  colStory: { id: "Kisah", en: "Story" },
+  colItems: { id: "Item", en: "Items" },
+  you: { id: "kamu", en: "you" },
+  backToGame: { id: "Kembali bermain", en: "Back to the game" },
+  elderTask: { id: "Permintaan tetua", en: "The elder asks" },
 } as const;

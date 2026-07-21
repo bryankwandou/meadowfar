@@ -69,6 +69,25 @@ export const PETS: PetDef[] = [
   { id: "bird", nama: "Burung biru", namaEn: "Bluebird", level: 10 },
 ];
 
+export interface DecorDef {
+  id: string;
+  nama: string;
+  namaEn: string;
+  missions: number; // quests finished to earn this decoration
+}
+
+// Tree-house decorations earned by finishing quests, placed by the player.
+export const DECORS: DecorDef[] = [
+  { id: "flag", nama: "Bendera warna-warni", namaEn: "Rainbow flag", missions: 1 },
+  { id: "pot", nama: "Pot bunga", namaEn: "Flower pots", missions: 3 },
+  { id: "lights", nama: "Untaian lampu", namaEn: "String lights", missions: 6 },
+  { id: "swing", nama: "Ayunan tali", namaEn: "Rope swing", missions: 10 },
+  { id: "chime", nama: "Lonceng angin", namaEn: "Wind chime", missions: 15 },
+  { id: "telescope", nama: "Teropong bintang", namaEn: "Star telescope", missions: 22 },
+  { id: "gnome", nama: "Kurcaci taman", namaEn: "Garden gnome", missions: 30 },
+  { id: "banner", nama: "Panji juara", namaEn: "Champion banner", missions: 40 },
+];
+
 export interface AchievementDef {
   id: string;
   nama: string;
@@ -96,6 +115,12 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: "biome-desert", nama: "Penakluk pasir", namaEn: "Sand conqueror", keterangan: "Injak gurun pasir untuk pertama kali", keteranganEn: "Set foot in the desert for the first time" },
   { id: "biome-snow", nama: "Penjelajah salju", namaEn: "Snow explorer", keterangan: "Injak padang salju untuk pertama kali", keteranganEn: "Set foot in the snowfield for the first time" },
   { id: "night-owl", nama: "Sahabat malam", namaEn: "Night owl", keterangan: "Bertualang saat langit malam tiba", keteranganEn: "Keep adventuring after night falls" },
+  { id: "race-1", nama: "Pelari kilat", namaEn: "Lightning runner", keterangan: "Menangkan balapan waktu pertamamu", keteranganEn: "Win your first timed race" },
+  { id: "race-10", nama: "Juara lintasan", namaEn: "Track champion", keterangan: "Menangkan 10 balapan waktu", keteranganEn: "Win 10 timed races" },
+  { id: "treasure-1", nama: "Pemburu peti", namaEn: "Chest hunter", keterangan: "Temukan peti harta karun pertamamu", keteranganEn: "Find your first treasure chest" },
+  { id: "delivery-1", nama: "Kurir padang", namaEn: "Meadow courier", keterangan: "Antarkan paket pertamamu sampai tujuan", keteranganEn: "Deliver your first package" },
+  { id: "home-1", nama: "Rumahku istanaku", namaEn: "Home sweet home", keterangan: "Pasang hiasan pertama di rumah pohonmu", keteranganEn: "Place your first decoration on your tree house" },
+  { id: "starquest-3", nama: "Pemulih bintang", namaEn: "Star mender", keterangan: "Selesaikan 3 misi pecahan bintang dari tetua", keteranganEn: "Finish 3 star-shard quests from the elders" },
 ];
 
 export interface Progress {
@@ -112,6 +137,17 @@ export interface Progress {
   lastHero: HeroId | null;
   storyChapter: number; // 0..12, chapters of "Bintang yang Hilang" heard so far
   pet: string | null; // active companion id
+  racesWon: number; // timed races finished in time
+  treasuresFound: number; // treasure chests opened
+  deliveries: number; // courier packages delivered
+  starQuests: number; // elder star-shard follow-up quests finished
+  decors: string[]; // decoration ids the player has earned
+  placedDecors: string[]; // decoration ids placed on the tree house
+}
+
+// Which decorations are earned given how many quests have been finished.
+export function earnedDecors(missionsDone: number): string[] {
+  return DECORS.filter((d) => missionsDone >= d.missions).map((d) => d.id);
 }
 
 export function levelFromXp(xp: number) {
@@ -136,6 +172,12 @@ export function defaultProgress(): Progress {
     lastHero: null,
     storyChapter: 0,
     pet: null,
+    racesWon: 0,
+    treasuresFound: 0,
+    deliveries: 0,
+    starQuests: 0,
+    decors: [],
+    placedDecors: [],
   };
 }
 
@@ -154,6 +196,12 @@ export function maxProgress(): Progress {
     lastHero: "wizard",
     storyChapter: 12,
     pet: "bird",
+    racesWon: 99,
+    treasuresFound: 99,
+    deliveries: 99,
+    starQuests: 12,
+    decors: DECORS.map((d) => d.id),
+    placedDecors: DECORS.map((d) => d.id),
   };
 }
 
@@ -201,5 +249,16 @@ export function sanitizeProgress(raw: unknown): Progress {
       typeof r.pet === "string" && PETS.some((p) => p.id === r.pet)
         ? r.pet
         : null,
+    racesWon: num(r.racesWon, 1_000_000),
+    treasuresFound: num(r.treasuresFound, 1_000_000),
+    deliveries: num(r.deliveries, 1_000_000),
+    starQuests: Math.min(12, Math.floor(num(r.starQuests, 12))),
+    decors: [
+      ...new Set([
+        ...earnedDecors(num(r.missionsDone, 1_000_000)),
+        ...arr(r.decors, DECORS.map((d) => d.id)),
+      ]),
+    ],
+    placedDecors: arr(r.placedDecors, DECORS.map((d) => d.id)),
   });
 }

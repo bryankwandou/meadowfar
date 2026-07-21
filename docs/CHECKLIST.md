@@ -22,6 +22,7 @@ Catatan jujur: daftar 50.000 butir tidak akan membantu siapa pun — yang pentin
 - [x] Akun uji QA dengan progres maksimum (di-seed dari env, kredensial tidak pernah masuk repo)
 - [ ] Ganti sandi / lupa sandi (butuh layanan email)
 - [ ] Dasbor orang tua untuk 12 akun anak
+- [x] Halaman /keluarga: semua penjelajah keluarga, aman dan tidak saling menjatuhkan
 
 ## Progression & gameplay
 - [x] XP dari item (10) dan misi (30); kurva level kuadratik
@@ -41,8 +42,13 @@ Catatan jujur: daftar 50.000 butir tidak akan membantu siapa pun — yang pentin
 - [x] Musik latar prosedural (WebAudio) + tombol nyala/mati
 - [x] Dua bahasa penuh (Indonesia/Inggris) dengan toggle di game dan halaman akun
 - [x] Prestasi baru: cerita, biome, malam (total 18)
-- [ ] Rumah pohon + dekorasi
-- [ ] Papan peringkat keluarga
+- [x] Lima jenis misi bergilir: kumpul, balapan gerbang, peti harta, antar paket, pecahan bintang
+- [x] Balapan waktu: gerbang berurutan, timer longgar, gagal tanpa hukuman
+- [x] Rumah pohon tetap + 8 hiasan yang dibuka lewat jumlah misi, bisa dipasang/dilepas
+- [x] Tombol "ke rumah pohon" (tanpa jalan kaki jauh dari salju)
+- [x] Papan keluarga: level, bab kisah, jumlah item — urut abjad, tanpa peringkat
+- [x] Tiap bab kisah punya permintaan tetua yang nyambung ke jenis misi
+- [x] 6 prestasi baru (balapan, peti, kurir, rumah, pecahan bintang) — total 24
 - [ ] Mode foto
 
 ## Kualitas
