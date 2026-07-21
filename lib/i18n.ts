@@ -157,4 +157,52 @@ export const UI = {
   you: { id: "kamu", en: "you" },
   backToGame: { id: "Kembali bermain", en: "Back to the game" },
   elderTask: { id: "Permintaan tetua", en: "The elder asks" },
+
+  // ----- photo mode -----
+  photo: { id: "Mode foto", en: "Photo mode" },
+  photoHint: {
+    id: "Pilih stiker lalu ketuk layar untuk menempelkannya. Tekan tombol kamera bila sudah pas.",
+    en: "Pick a sticker, then tap the screen to stick it on. Press the camera button when it looks right.",
+  },
+  shutter: { id: "Jepret", en: "Snap" },
+  clearStickers: { id: "Hapus stiker", en: "Clear stickers" },
+  exitPhoto: { id: "Selesai", en: "Done" },
+  savePhoto: { id: "Simpan foto", en: "Save photo" },
+  retake: { id: "Foto lagi", en: "Take another" },
+  photoReady: { id: "Fotomu siap!", en: "Your photo is ready!" },
+
+  // ----- graphics -----
+  graphics: { id: "Grafis", en: "Graphics" },
+  gfxAuto: { id: "Otomatis", en: "Auto" },
+  gfxLow: { id: "Ringan", en: "Smooth" },
+  gfxHigh: { id: "Indah", en: "Pretty" },
+  gfxNote: {
+    id: "Pilih Ringan bila permainan terasa tersendat di perangkat ini.",
+    en: "Choose Smooth if the game feels choppy on this device.",
+  },
+  settings: { id: "Pengaturan", en: "Settings" },
+
+  // ----- parent dashboard -----
+  parentTitle: { id: "Dasbor orang tua", en: "Parent dashboard" },
+  parentSub: {
+    id: "Ringkasan permainan semua anak, dan batas waktu main harian.",
+    en: "An overview of every child's play, and their daily play-time limit.",
+  },
+  parentOnly: {
+    id: "Halaman ini hanya untuk akun orang tua.",
+    en: "This page is for parent accounts only.",
+  },
+  colQuests: { id: "Misi", en: "Quests" },
+  colLastPlayed: { id: "Terakhir main", en: "Last played" },
+  colLimit: { id: "Batas harian", en: "Daily limit" },
+  noLimit: { id: "Tanpa batas", en: "No limit" },
+  minutes: { id: (m: number) => `${m} menit`, en: (m: number) => `${m} min` },
+  saveLimit: { id: "Simpan", en: "Save" },
+  saved: { id: "Tersimpan", en: "Saved" },
+  restTitle: { id: "Waktunya istirahat", en: "Time for a break" },
+  restBody: {
+    id: "Kamu sudah bermain cukup lama hari ini. Istirahat dulu ya — padang ini menunggumu besok.",
+    en: "You have played for a good while today. Take a rest — the meadow will be here tomorrow.",
+  },
+  restOk: { id: "Baik!", en: "Okay!" },
 } as const;

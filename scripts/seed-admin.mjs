@@ -68,12 +68,18 @@ await sql`CREATE TABLE IF NOT EXISTS progress (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 )`;
 
+// Parent controls live on the users table; add them if this is an older DB.
+await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_parent BOOLEAN NOT NULL DEFAULT false`;
+await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_limit_min INTEGER NOT NULL DEFAULT 0`;
+
 const hash = await bcrypt.hash(password, 10);
+// The QA account doubles as the parent account — it is the only one that can
+// reach /orangtua and see every child's progress.
 const rows = await sql`
-  INSERT INTO users (username, username_lower, email, password_hash)
-  VALUES (${username}, ${username.toLowerCase()}, ${username.toLowerCase() + "@seed.meadowfar"}, ${hash})
+  INSERT INTO users (username, username_lower, email, password_hash, is_parent)
+  VALUES (${username}, ${username.toLowerCase()}, ${username.toLowerCase() + "@seed.meadowfar"}, ${hash}, true)
   ON CONFLICT (username_lower)
-  DO UPDATE SET password_hash = EXCLUDED.password_hash
+  DO UPDATE SET password_hash = EXCLUDED.password_hash, is_parent = true
   RETURNING id`;
 await sql`
   INSERT INTO progress (user_id, data, updated_at)
