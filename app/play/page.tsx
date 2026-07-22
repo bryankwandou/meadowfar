@@ -6,7 +6,7 @@ const Game = dynamic(() => import("@/components/Game"), {
   ssr: false,
   loading: () => (
     <div className="flex min-h-screen items-center justify-center bg-emerald-100 text-lg font-medium text-emerald-800">
-      Menyiapkan padang rumput...
+      Getting the meadow ready&hellip; · Menyiapkan padang rumput&hellip;
     </div>
   ),
 });
