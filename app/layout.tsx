@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -13,9 +13,23 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Meadowfar — dunia terbuka untuk anak, langsung dari peramban",
+  title: "Meadowfar — an open world for kids, right in the browser",
   description:
-    "Padang rumput tanpa tepi dengan misi yang terus lahir. Aman untuk anak, tanpa unduhan, tanpa iklan.",
+    "An endless meadow with quests that never run out. Safe for kids, no downloads, no ads. Padang rumput tanpa tepi, aman untuk anak.",
+  applicationName: "Meadowfar",
+  appleWebApp: { capable: true, title: "Meadowfar", statusBarStyle: "default" },
+  openGraph: {
+    title: "Meadowfar — an open world for kids",
+    description: "An endless meadow with quests that never run out. Safe, free, no downloads.",
+    type: "website",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#059669",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

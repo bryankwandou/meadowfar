@@ -350,6 +350,13 @@ export default function Game() {
       0.1,
       500
     );
+    // Start already in the follow pose so the very first frame shows the
+    // character from behind — never a frame from inside it at the origin.
+    {
+      const y0 = terrainHeight(0, 0);
+      camera.position.set(0, y0 + 6.5, 11);
+      camera.lookAt(0, y0 + 2, 0);
+    }
 
     const sun = new THREE.DirectionalLight(0xfff2d8, 2.4);
     sun.position.set(40, 70, 20);
