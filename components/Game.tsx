@@ -94,6 +94,7 @@ export default function Game() {
   >([]);
   const [photo, setPhoto] = useState<string | null>(null);
   const [isParent, setIsParent] = useState(false);
+  const [pops, setPops] = useState<{ id: number; x: number; y: number; text: string }[]>([]);
   const [restOpen, setRestOpen] = useState(false);
   const limitRef = useRef(0); // daily minutes allowed; 0 = no limit
   const captureRef = useRef(false);
@@ -540,6 +541,9 @@ export default function Game() {
     const legL = mk(0.3, 0.95, 0.3, skin, -0.24, 0.55, 0);
     const legR = mk(0.3, 0.95, 0.3, skin, 0.24, 0.55, 0);
     scene.add(player);
+    // YXZ so heading (y) applies first and the run-lean (x) tilts forward
+    // relative to where the character faces, not sideways.
+    player.rotation.order = "YXZ";
     player.position.set(0, terrainHeight(0, 0), 0);
 
     // lantern glow at night (only when the lantern gear is owned)
@@ -1302,6 +1306,64 @@ export default function Game() {
     const onLeave = () => save();
     window.addEventListener("beforeunload", onLeave);
 
+    // ---------- collection sparkle burst (pooled, cheap) ----------
+    const sparkGeo = new THREE.OctahedronGeometry(0.16);
+    const sparks: {
+      mesh: THREE.Mesh; vx: number; vy: number; vz: number; life: number;
+    }[] = [];
+    function burst(x: number, y: number, z: number, color: number) {
+      const count = LOW ? 5 : 9;
+      for (let i = 0; i < count; i++) {
+        const mat = new THREE.MeshBasicMaterial({
+          color, transparent: true, opacity: 1,
+        });
+        const mesh = new THREE.Mesh(sparkGeo, mat);
+        mesh.position.set(x, y, z);
+        const a = Math.random() * Math.PI * 2;
+        const sp = 2 + Math.random() * 3;
+        sparks.push({
+          mesh,
+          vx: Math.cos(a) * sp,
+          vy: 3 + Math.random() * 3,
+          vz: Math.sin(a) * sp,
+          life: 0.6,
+        });
+        scene.add(mesh);
+      }
+    }
+    function updateSparks(dt: number) {
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const s = sparks[i];
+        s.life -= dt;
+        if (s.life <= 0) {
+          scene.remove(s.mesh);
+          (s.mesh.material as THREE.Material).dispose();
+          sparks.splice(i, 1);
+          continue;
+        }
+        s.vy -= 9 * dt;
+        s.mesh.position.x += s.vx * dt;
+        s.mesh.position.y += s.vy * dt;
+        s.mesh.position.z += s.vz * dt;
+        s.mesh.rotation.x += dt * 6;
+        s.mesh.rotation.y += dt * 6;
+        const k = s.life / 0.6;
+        s.mesh.scale.setScalar(0.4 + k * 0.8);
+        (s.mesh.material as THREE.MeshBasicMaterial).opacity = k;
+      }
+    }
+    // project a world point to screen % for the floating "+score" popups
+    const projV = new THREE.Vector3();
+    function popScore(x: number, y: number, z: number, text: string) {
+      projV.set(x, y, z).project(camera);
+      if (projV.z > 1) return;
+      const sx = (projV.x * 0.5 + 0.5) * 100;
+      const sy = (-projV.y * 0.5 + 0.5) * 100;
+      const id = Date.now() + Math.random();
+      setPops((ps) => [...ps.slice(-6), { id, x: sx, y: sy, text }]);
+      setTimeout(() => setPops((ps) => ps.filter((p) => p.id !== id)), 850);
+    }
+
     // ---------- main loop ----------
     let yaw = 0;
     let walk = 0;
@@ -1316,6 +1378,12 @@ export default function Game() {
     let last = performance.now();
     let raf = 0;
     let localScore = 0;
+    // character/camera "juice" state
+    let lean = 0; // forward body tilt
+    let landT = 0; // landing-squash timer
+    let prevAirborne = false;
+    let camDip = 0; // brief camera drop on landing
+    const LAND = 0.16;
     const dayStart = performance.now() - DAY_SECONDS * 250; // begin mid-morning
 
     function frame(now: number) {
@@ -1335,8 +1403,10 @@ export default function Game() {
         iz = joyRef.current.y;
       }
       const len = Math.hypot(ix, iz);
+      let sprintNow = false;
       if (len > 0.15) {
         const sprinting = has("sprint") && (keys["shift"] || len > 0.95);
+        sprintNow = sprinting;
         const speed = sprinting ? 16 : 10;
         const dx = (ix / len) * speed * dt;
         const dz = (iz / len) * speed * dt;
@@ -1346,18 +1416,23 @@ export default function Game() {
         if (p.distance >= 1000) award("walk-1000");
         if (p.distance >= 10000) award("walk-10000");
         yaw = Math.atan2(dx, dz);
-        walk += dt * (sprinting ? 14 : 10);
-        armL.rotation.x = Math.sin(walk) * 0.8;
-        armR.rotation.x = -Math.sin(walk) * 0.8;
-        legL.rotation.x = -Math.sin(walk) * 0.8;
-        legR.rotation.x = Math.sin(walk) * 0.8;
+        walk += dt * (sprinting ? 16 : 11);
+        const swing = sprinting ? 1.15 : 0.8;
+        armL.rotation.x = Math.sin(walk) * swing;
+        armR.rotation.x = -Math.sin(walk) * swing;
+        legL.rotation.x = -Math.sin(walk) * swing;
+        legR.rotation.x = Math.sin(walk) * swing;
+        lean += ((sprinting ? 0.16 : 0.07) - lean) * 0.15; // lean into the run
       } else {
         armL.rotation.x *= 0.85;
         armR.rotation.x *= 0.85;
         legL.rotation.x *= 0.85;
         legR.rotation.x *= 0.85;
+        lean += (0 - lean) * 0.12;
       }
       player.rotation.y += (yaw - player.rotation.y) * 0.2;
+      player.rotation.x = lean;
+      const moving = len > 0.15;
 
       // biome discovery achievements
       const b = biomeAt(player.position.x, player.position.z);
@@ -1400,7 +1475,28 @@ export default function Game() {
         terrainHeight(player.position.x, player.position.z),
         WATER_Y // kids float on the lake surface instead of sinking
       );
-      player.position.y = groundY + jumpY;
+      // squash & stretch + a little walk bounce make the character feel alive
+      if (prevAirborne && !airborne) {
+        landT = LAND; // just touched down
+        camDip = 0.35;
+      }
+      prevAirborne = airborne;
+      if (landT > 0) landT = Math.max(0, landT - dt);
+      let sx = 1, sy = 1;
+      if (airborne) {
+        sy = 1.12; sx = 0.94; // stretch through the air
+      } else if (landT > 0) {
+        const k = landT / LAND;
+        sy = 1 - 0.18 * k; sx = 1 + 0.13 * k; // squash on landing
+      } else if (moving) {
+        sy = 1; sx = 1;
+      } else {
+        sy = 1 + Math.sin(now / 700) * 0.02; // gentle breathing at rest
+        sx = 1 - Math.sin(now / 700) * 0.01;
+      }
+      player.scale.set(sx, sy, sx);
+      const bounce = moving && !airborne ? Math.abs(Math.sin(walk)) * 0.09 : 0;
+      player.position.y = groundY + jumpY + bounce;
 
       // ---------- day-night cycle ----------
       const dayT = (((now - dayStart) / 1000) % DAY_SECONDS) / DAY_SECONDS;
@@ -1577,14 +1673,18 @@ export default function Game() {
         );
       }
 
-      // camera follow
+      // camera follow — sprint widens the lens + pulls back for a speed rush
+      if (camDip > 0) camDip = Math.max(0, camDip - dt * 2.4);
+      const targetFov = sprintNow ? 68 : 60;
+      camera.fov += (targetFov - camera.fov) * 0.06;
+      camera.updateProjectionMatrix();
       const camTarget = new THREE.Vector3(
         player.position.x,
-        player.position.y + 6.5,
-        player.position.z + 11
+        player.position.y + 6.5 - camDip,
+        player.position.z + (sprintNow ? 11.8 : 11)
       );
       camera.position.lerp(camTarget, 0.08);
-      camera.lookAt(player.position.x, player.position.y + 2, player.position.z);
+      camera.lookAt(player.position.x, player.position.y + 2 - camDip * 0.5, player.position.z);
       sun.target.position.copy(player.position);
       sun.target.updateMatrixWorld();
 
@@ -1628,10 +1728,14 @@ export default function Game() {
             1.4 + Math.sin(now / 300 + i) * 0.25;
         }
         if (dist < 2.2) {
+          const itemColor = (m.material as THREE.MeshStandardMaterial).color.getHex();
+          burst(m.position.x, m.position.y, m.position.z, itemColor);
+          const gain = 10 + toolBonus();
+          popScore(m.position.x, m.position.y + 1.4, m.position.z, `+${gain}`);
           scene.remove(m);
           items.splice(i, 1);
           got++;
-          localScore += 10 + toolBonus();
+          localScore += gain;
           p.itemsCollected++;
           gainXp(10);
           award("first-item");
@@ -1746,6 +1850,7 @@ export default function Game() {
         );
       }
 
+      updateSparks(dt);
       renderer.render(scene, camera);
 
       // Grab the frame in the same tick it was drawn, so the GL buffer is still
@@ -2099,6 +2204,15 @@ export default function Game() {
         >
           {pick(lang, UI.home.id, UI.home.en)}
         </button>
+        <button
+          onClick={() => {
+            save();
+            setHero(null);
+          }}
+          className="rounded-xl bg-black/45 px-4 py-2 text-xs font-semibold text-fuchsia-300 backdrop-blur"
+        >
+          {pick(lang, UI.changeHero.id, UI.changeHero.en)}
+        </button>
         <a
           href="/keluarga"
           className="rounded-xl bg-black/45 px-4 py-2 text-center text-xs font-semibold text-sky-300 backdrop-blur"
@@ -2163,6 +2277,20 @@ export default function Game() {
           {pick(lang, UI.talkElder.id, UI.talkElder.en)}
         </button>
       )}
+      {!photoMode &&
+        pops.map((pop) => (
+          <div
+            key={pop.id}
+            className="animate-float-up pointer-events-none absolute z-10 text-xl font-extrabold text-amber-300"
+            style={{
+              left: `${pop.x}%`,
+              top: `${pop.y}%`,
+              textShadow: "0 2px 6px rgba(0,0,0,0.55)",
+            }}
+          >
+            {pop.text}
+          </div>
+        ))}
       {toast && !photoMode && (
         <div className="pointer-events-none absolute left-1/2 top-1/3 -translate-x-1/2 rounded-2xl bg-amber-400 px-8 py-4 text-lg font-bold text-amber-950 shadow-2xl">
           {toast}

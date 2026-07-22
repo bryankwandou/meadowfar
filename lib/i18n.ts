@@ -158,6 +158,8 @@ export const UI = {
   backToGame: { id: "Kembali bermain", en: "Back to the game" },
   elderTask: { id: "Permintaan tetua", en: "The elder asks" },
 
+  changeHero: { id: "Ganti tokoh", en: "Change character" },
+
   // ----- photo mode -----
   photo: { id: "Mode foto", en: "Photo mode" },
   photoHint: {
