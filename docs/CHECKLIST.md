@@ -54,6 +54,11 @@ Catatan jujur: daftar 50.000 butir tidak akan membantu siapa pun — yang pentin
 - [x] 6 prestasi baru (balapan, peti, kurir, rumah, pecahan bintang) — total 24
 - [x] Mode foto: stiker emoji ditempel dengan ketukan, bingkai putih, tanda "Meadowfar", simpan PNG
 - [x] Rumput bergoyang (instanced + shader), air danau beriak, debu cahaya siang
+- [x] Rasa gerak: napas saat diam, ayun tangan-kaki, condong saat lari, pantulan langkah
+- [x] Lompat squash & stretch: memanjat saat naik, memipih saat mendarat + kamera turun sekejap
+- [x] Sensasi kecepatan: lensa kamera melebar (FOV) & mundur sedikit saat lari kencang
+- [x] Efek ambil item: percikan kristal berhamburan + angka "+skor" melayang naik
+- [x] Tombol "ganti tokoh" di dalam game (tanpa muat ulang halaman)
 
 ## Kualitas
 - [x] Build produksi lolos TypeScript ketat
