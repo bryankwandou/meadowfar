@@ -65,6 +65,7 @@ export const UI = {
   sprintHint: { id: "· Shift lari", en: "· Shift to sprint" },
   book: { id: "Buku petualang", en: "Adventure book" },
   music: { id: "Musik", en: "Music" },
+  volume: { id: "Volume suara", en: "Sound volume" },
   on: { id: "nyala", en: "on" },
   off: { id: "mati", en: "off" },
   talkElder: { id: "Bicara dengan tetua (E)", en: "Talk to the elder (E)" },

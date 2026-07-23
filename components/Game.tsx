@@ -111,6 +111,8 @@ export default function Game() {
   const [npcNear, setNpcNear] = useState(false);
   const [storyOpen, setStoryOpen] = useState<number | null>(null); // chapter being read
   const [musicOn, setMusicOn] = useState(true);
+  const [volume, setVolume] = useState(70); // 0..100 master loudness
+  const volRef = useRef(70);
   const joyRef = useRef({ x: 0, y: 0, active: false });
   const jumpRef = useRef(false);
   const talkRef = useRef(false);
@@ -122,6 +124,14 @@ export default function Game() {
   const toastQueue = useRef<string[]>([]);
   const toastBusy = useRef(false);
 
+  // keep the audio ref + storage in sync as the slider moves (live volume)
+  useEffect(() => {
+    volRef.current = volume;
+    try {
+      localStorage.setItem("meadowfar-vol", String(volume));
+    } catch {}
+  }, [volume]);
+
   // ---------- load account + saved progress ----------
   useEffect(() => {
     const l = detectLang();
@@ -132,6 +142,12 @@ export default function Game() {
       if (m === "off") {
         setMusicOn(false);
         musicRef.current = false;
+      }
+      const v = localStorage.getItem("meadowfar-vol");
+      if (v !== null) {
+        const n = Math.max(0, Math.min(100, parseInt(v, 10) || 0));
+        setVolume(n);
+        volRef.current = n;
       }
       const q = localStorage.getItem("meadowfar-gfx");
       if (q === "low" || q === "high" || q === "auto") setGfx(q);
@@ -282,9 +298,21 @@ export default function Game() {
 
     // ---------- audio: chimes + gentle procedural lullaby (no audio files) ----------
     let audioCtx: AudioContext | null = null;
+    let masterNode: GainNode | null = null;
     function ctx() {
       audioCtx = audioCtx || new AudioContext();
       return audioCtx;
+    }
+    // Single master gain every sound passes through, so the volume slider
+    // scales the whole soundscape live (0 = silent).
+    function master() {
+      const c = ctx();
+      if (!masterNode) {
+        masterNode = c.createGain();
+        masterNode.connect(c.destination);
+      }
+      masterNode.gain.value = volRef.current / 100;
+      return masterNode;
     }
     function chime(freq: number) {
       try {
@@ -295,7 +323,7 @@ export default function Game() {
         o.frequency.value = freq;
         g.gain.setValueAtTime(0.15, c.currentTime);
         g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.5);
-        o.connect(g).connect(c.destination);
+        o.connect(g).connect(master());
         o.start();
         o.stop(c.currentTime + 0.5);
       } catch {}
@@ -316,7 +344,7 @@ export default function Game() {
         o.frequency.value = step % 8 === 0 ? note / 2 : note;
         g.gain.setValueAtTime(0.035, c.currentTime);
         g.gain.exponentialRampToValueAtTime(0.0005, c.currentTime + 1.4);
-        o.connect(g).connect(c.destination);
+        o.connect(g).connect(master());
         o.start();
         o.stop(c.currentTime + 1.4);
       } catch {}
@@ -2239,6 +2267,23 @@ export default function Game() {
         >
           {pick(lang, UI.music.id, UI.music.en)}: {musicOn ? pick(lang, UI.on.id, UI.on.en) : pick(lang, UI.off.id, UI.off.en)}
         </button>
+        <div className="flex items-center gap-2 rounded-xl bg-black/45 px-4 py-2 text-xs font-semibold text-white backdrop-blur">
+          <span aria-hidden>🔊</span>
+          <label className="sr-only" htmlFor="vol">
+            {pick(lang, UI.volume.id, UI.volume.en)}
+          </label>
+          <input
+            id="vol"
+            type="range"
+            min={0}
+            max={100}
+            value={volume}
+            onChange={(e) => setVolume(parseInt(e.target.value, 10))}
+            className="h-1 w-24 cursor-pointer accent-emerald-400"
+            aria-label={pick(lang, UI.volume.id, UI.volume.en)}
+          />
+          <span className="w-8 tabular-nums text-right text-white/70">{volume}</span>
+        </div>
         <button
           onClick={() => setPhotoMode(true)}
           className="rounded-xl bg-black/45 px-4 py-2 text-xs font-semibold text-pink-300 backdrop-blur"
