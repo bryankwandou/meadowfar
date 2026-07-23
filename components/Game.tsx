@@ -536,10 +536,24 @@ export default function Game() {
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
     mk(0.09, 0.12, 0.05, eyeMat, -0.16, 2.55, 0.37);
     mk(0.09, 0.12, 0.05, eyeMat, 0.16, 2.55, 0.37);
-    const armL = mk(0.26, 0.9, 0.26, skin, -0.6, 1.5, 0);
-    const armR = mk(0.26, 0.9, 0.26, skin, 0.6, 1.5, 0);
-    const legL = mk(0.3, 0.95, 0.3, skin, -0.24, 0.55, 0);
-    const legR = mk(0.3, 0.95, 0.3, skin, 0.24, 0.55, 0);
+    // limbs: geometry shifted down so the pivot sits at the shoulder/hip,
+    // making them swing from the joint (natural gait) instead of the middle.
+    const limb = (
+      w: number, h: number, d: number,
+      m: THREE.Material, x: number, jointY: number
+    ) => {
+      const geo = new THREE.BoxGeometry(w, h, d);
+      geo.translate(0, -h / 2, 0);
+      const b = new THREE.Mesh(geo, m);
+      b.position.set(x, jointY, 0);
+      b.castShadow = true;
+      player.add(b);
+      return b;
+    };
+    const armL = limb(0.26, 0.9, 0.26, skin, -0.6, 1.95);
+    const armR = limb(0.26, 0.9, 0.26, skin, 0.6, 1.95);
+    const legL = limb(0.3, 0.95, 0.3, skin, -0.24, 1.02);
+    const legR = limb(0.3, 0.95, 0.3, skin, 0.24, 1.02);
     scene.add(player);
     // YXZ so heading (y) applies first and the run-lean (x) tilts forward
     // relative to where the character faces, not sideways.
