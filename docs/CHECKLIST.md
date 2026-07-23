@@ -59,6 +59,7 @@ Catatan jujur: daftar 50.000 butir tidak akan membantu siapa pun — yang pentin
 - [x] Sensasi kecepatan: lensa kamera melebar (FOV) & mundur sedikit saat lari kencang
 - [x] Efek ambil item: percikan kristal berhamburan + angka "+skor" melayang naik
 - [x] Tombol "ganti tokoh" di dalam game (tanpa muat ulang halaman)
+- [x] Kaki & tangan berayun dari pinggul/bahu (pivot sendi, bukan tengah limb) — langkah lebih natural
 
 ## Kualitas
 - [x] Build produksi lolos TypeScript ketat
