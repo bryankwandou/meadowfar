@@ -1540,6 +1540,20 @@ export default function Game() {
       const bounce = moving && !airborne ? Math.abs(Math.sin(walk)) * 0.09 : 0;
       player.position.y = groundY + jumpY + bounce;
 
+      // ---------- swimming: on the lake surface, switch to a swim pose ----------
+      const swimming =
+        terrainHeight(player.position.x, player.position.z) < WATER_Y - 0.05 && !airborne;
+      if (swimming) {
+        const t = now / 220;
+        player.rotation.x = 0.95; // lean into a swimmer's prone pose
+        armL.rotation.x = -0.7 + Math.sin(t) * 1.0; // alternating stroke
+        armR.rotation.x = -0.7 + Math.sin(t + Math.PI) * 1.0;
+        legL.rotation.x = Math.sin(t * 1.3) * 0.35; // small flutter kick
+        legR.rotation.x = Math.sin(t * 1.3 + Math.PI) * 0.35;
+        player.scale.set(1, 1, 1);
+        player.position.y = WATER_Y - 0.35 + Math.sin(now / 500) * 0.12; // sit low, bob
+      }
+
       // ---------- day-night cycle ----------
       const dayT = (((now - dayStart) / 1000) % DAY_SECONDS) / DAY_SECONDS;
       const sunA = dayT * Math.PI * 2;

@@ -61,6 +61,7 @@ Catatan jujur: daftar 50.000 butir tidak akan membantu siapa pun — yang pentin
 - [x] Tombol "ganti tokoh" di dalam game (tanpa muat ulang halaman)
 - [x] Kaki & tangan berayun dari pinggul/bahu (pivot sendi, bukan tengah limb) — langkah lebih natural
 - [x] Penggeser volume suara 0–100 (master gain WebAudio, live, tersimpan) — bukan cuma nyala/mati
+- [x] Animasi berenang di danau: pose telungkup, tangan mengayuh bergantian, kaki menendang, badan mengapung
 
 ## Kualitas
 - [x] Build produksi lolos TypeScript ketat
