@@ -6,45 +6,74 @@ import { detectLang, saveLang, pick, type Lang } from "@/lib/i18n";
 
 const T = {
   badge: {
-    id: "Dunia terbuka untuk anak, langsung dari peramban",
-    en: "An open world for kids, straight from the browser",
+    id: "Dunia terbuka 3D untuk anak, langsung dari peramban",
+    en: "A 3D open world for kids, straight from the browser",
   },
   tagline: {
-    id: "Padang rumput yang membentang tanpa tepi, pohon yang tumbuh di tempat berbeda setiap kali kaki melangkah lebih jauh, dan misi kecil yang tidak pernah kehabisan. Tidak ada unduhan, tidak ada iklan, tidak ada akhir cerita.",
-    en: "A meadow that stretches without edges, trees that grow in new places every time you wander farther, and little quests that never run out. No downloads, no ads, no end to the story.",
+    id: "Padang rumput tanpa tepi, hutan, gurun, salju, dan danau yang berkilau. Misi kecil yang tak pernah habis, kisah 12 bab, dan tokoh yang tumbuh bersama pemainnya. Tanpa unduhan, tanpa iklan, tanpa kekerasan.",
+    en: "Endless meadows, forests, deserts, snow, and shimmering lakes. Little quests that never run out, a 12-chapter story, and characters that grow with the player. No downloads, no ads, no violence.",
   },
-  play: { id: "Mulai menjelajah", en: "Start exploring" },
+  play: { id: "Main sekarang — gratis", en: "Play now — free" },
   makeAccount: { id: "Buat akun", en: "Create an account" },
   accountTail: {
-    id: "supaya level dan tokoh yang terbuka tersimpan, atau",
-    en: "so your levels and unlocked characters are saved, or",
+    id: "supaya progres tersimpan, atau",
+    en: "so progress is saved, or",
   },
   login: { id: "masuk", en: "log in" },
   loginTail: { id: "kalau sudah punya.", en: "if you already have one." },
   scroll: { id: "gulir ke bawah", en: "scroll down" },
-  marquee: {
-    id: "Dunia tanpa batas peta • Misi baru terus lahir • Aman untuk usia empat tahun ke atas • Jalan pakai keyboard atau sentuhan • Gratis selamanya • ",
-    en: "A world with no map edges • New quests always appearing • Safe for ages four and up • Move with keyboard or touch • Free forever • ",
+
+  // ----- statement / manifesto -----
+  stmtKicker: { id: "Pernyataan kami", en: "Our statement" },
+  stmtBody: {
+    id: "Kami percaya anak berhak atas ruang bermain digital yang tenang dan aman — bukan tempat penuh iklan, tekanan bersaing, atau kejutan menakutkan. Meadowfar dibangun sebagai dunia 3D sungguhan yang bisa dipercaya orang tua dan disukai anak: satu klik untuk mulai, mustahil untuk kalah, dan selalu ada hal baru untuk ditemukan.",
+    en: "We believe children deserve a calm, safe digital place to play — not one filled with ads, competitive pressure, or scary surprises. Meadowfar is built as a real 3D world that parents can trust and kids love: one click to start, impossible to lose, and always something new to discover.",
   },
+
+  // ----- world stats -----
+  statsTitle: { id: "Sebuah dunia, bukan sekadar level", en: "A whole world, not just levels" },
+  stBiomes: { id: "Biome untuk dijelajahi", en: "Biomes to explore" },
+  stQuestTypes: { id: "Jenis misi bergilir", en: "Rotating quest types" },
+  stChapters: { id: "Bab kisah dua bahasa", en: "Bilingual story chapters" },
+  stChars: { id: "Tokoh yang bisa dibuka", en: "Unlockable characters" },
+  stAch: { id: "Prestasi terukur", en: "Measured achievements" },
+  stCost: { id: "Biaya, selamanya", en: "Cost, forever" },
+
   featuresTitle: {
-    id: "Dibuat supaya anak betah, bukan supaya orang tua repot",
-    en: "Built to keep kids happy, not to keep parents busy",
+    id: "Dibuat supaya anak betah, orang tua tenang",
+    en: "Built so kids stay happy and parents stay calm",
   },
   f1t: { id: "Peta yang tidak pernah habis", en: "A map that never ends" },
   f1b: {
-    id: "Setiap langkah ke arah baru menumbuhkan bukit, pohon, dan batu yang belum pernah dilihat sebelumnya. Anak boleh berjalan berjam-jam tanpa menabrak dinding tak terlihat.",
-    en: "Every step in a new direction grows hills, trees, and rocks never seen before. Kids can walk for hours without ever hitting an invisible wall.",
+    id: "Dunia prosedural tumbuh mengikuti langkah anak — bukit, pohon, dan danau baru muncul terus. Berjam-jam menjelajah tanpa menabrak dinding tak terlihat.",
+    en: "A procedural world grows as kids walk — new hills, trees, and lakes keep appearing. Hours of exploring without ever hitting an invisible wall.",
   },
-  f2t: { id: "Misi lahir terus-menerus", en: "Quests appear endlessly" },
+  f2t: { id: "Mustahil kalah", en: "Impossible to lose" },
   f2b: {
-    id: "Selesai mengumpulkan bintang emas, muncul permintaan mencari buah beri. Selesai itu, kristal biru menunggu. Permainan menyusun sendiri tugas berikutnya, jadi tidak ada kata tamat.",
-    en: "Finish collecting golden stars and a berry hunt appears. Finish that and blue crystals await. The game writes its own next task, so there is no 'game over'.",
+    id: "Balapan tanpa hukuman, misi yang selalu lahir baru, dan papan keluarga tanpa peringkat. Tidak ada 'game over', tidak ada anak yang dipermalukan.",
+    en: "Pressure-free races, quests that always renew, and a family board with no rankings. No 'game over', and no child is ever shamed.",
   },
-  f3t: { id: "Tanpa hal yang membuat khawatir", en: "Nothing to worry about" },
+  f3t: { id: "Grafik 3D sungguhan", en: "Real 3D graphics" },
   f3b: {
-    id: "Tidak ada obrolan dengan orang asing, tidak ada pembelian di dalam permainan, tidak ada kejutan menakutkan. Hanya padang cerah dan rasa penasaran.",
-    en: "No chatting with strangers, no in-game purchases, no scary surprises. Just a bright meadow and a sense of wonder.",
+    id: "Siklus siang-malam, bayangan dinamis, tone mapping filmic, rumput bergoyang, air beriak, dan mode grafis otomatis agar tetap mulus di laptop sekolah.",
+    en: "Day–night cycle, dynamic shadows, filmic tone mapping, waving grass, rippling water, and auto graphics quality to stay smooth on school laptops.",
   },
+
+  // ----- safety / parents -----
+  safeTitle: { id: "Aman sejak dirancang", en: "Safe by design" },
+  safeSub: {
+    id: "Setiap keputusan desain dibuat dengan orang tua di ruangan.",
+    en: "Every design decision was made with a parent in the room.",
+  },
+  safe1: { id: "Tanpa kekerasan & tanpa konten menakutkan", en: "No violence, no scary content" },
+  safe2: { id: "Tanpa iklan & tanpa pembelian dalam game", en: "No ads, no in-game purchases" },
+  safe3: { id: "Tanpa obrolan dengan orang asing (single-player)", en: "No chat with strangers (single-player)" },
+  safe4: { id: "Papan keluarga tanpa peringkat", en: "Family board with no rankings" },
+  safe5: { id: "Dasbor orang tua + batas waktu main harian", en: "Parent dashboard + daily play-time limit" },
+  safe6: { id: "Pengingat istirahat yang lembut, bukan mengunci", en: "Gentle break reminders, never a lockout" },
+  safe7: { id: "Dua bahasa penuh (Indonesia & Inggris)", en: "Fully bilingual (Indonesian & English)" },
+  safe8: { id: "Menghormati mode 'kurangi gerak'", en: "Respects 'reduce motion' settings" },
+
   howTitle: { id: "Cara mainnya sederhana sekali", en: "Playing is wonderfully simple" },
   s1t: { id: "Buka tautannya", en: "Open the link" },
   s1b: {
@@ -53,22 +82,23 @@ const T = {
   },
   s2t: { id: "Pilih tokoh", en: "Pick a character" },
   s2b: {
-    id: "Anak perempuan atau anak laki-laki, keduanya sama-sama cepat larinya.",
-    en: "A girl or a boy explorer — both run just as fast.",
+    id: "Enam tokoh terbuka seiring naik level, masing-masing dengan aksesori sendiri.",
+    en: "Six characters unlock as you level up, each with their own accessory.",
   },
   s3t: { id: "Jalan ke mana saja", en: "Walk anywhere" },
   s3b: {
-    id: "Tombol panah, WASD, atau tuas sentuh di pojok layar. Kumpulkan benda berkilau yang diminta di pojok kiri atas.",
-    en: "Arrow keys, WASD, or the touch stick in the corner. Collect the shiny things asked for in the top-left.",
+    id: "Panah, WASD, atau tuas sentuh. Kumpulkan benda berkilau yang diminta di pojok layar.",
+    en: "Arrows, WASD, or the touch stick. Collect the shiny things shown in the corner.",
   },
+
   ctaTitle: {
     id: "Sore ini anakmu bisa langsung berpetualang",
     en: "Your child can start adventuring this afternoon",
   },
   ctaBtn: { id: "Buka Meadowfar sekarang", en: "Open Meadowfar now" },
-  footer: {
-    id: "Meadowfar dibuat dengan geometri asli tanpa aset berhak cipta. Kode terbuka di GitHub.",
-    en: "Meadowfar is built from original geometry with no copyrighted assets. Open source on GitHub.",
+  studio: {
+    id: "Dibuat oleh nayrbryanGaming di Makassar, Indonesia. Geometri asli, tanpa aset berhak cipta. Kode terbuka di GitHub.",
+    en: "Made by nayrbryanGaming in Makassar, Indonesia. Original geometry, no copyrighted assets. Open source on GitHub.",
   },
 };
 
@@ -80,7 +110,7 @@ function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: nu
     if (!el) return;
     const io = new IntersectionObserver(
       ([e]) => e.isIntersecting && setShown(true),
-      { threshold: 0.2 }
+      { threshold: 0.15 }
     );
     io.observe(el);
     return () => io.disconnect();
@@ -106,7 +136,7 @@ function TiltCard({ title, body }: { title: string; body: string }) {
     const r = el.getBoundingClientRect();
     const x = (e.clientX - r.left) / r.width - 0.5;
     const y = (e.clientY - r.top) / r.height - 0.5;
-    el.style.transform = `perspective(700px) rotateY(${x * 10}deg) rotateX(${-y * 10}deg) translateY(-4px)`;
+    el.style.transform = `perspective(700px) rotateY(${x * 8}deg) rotateX(${-y * 8}deg) translateY(-4px)`;
   };
   const onLeave = () => {
     if (ref.current) ref.current.style.transform = "";
@@ -124,6 +154,15 @@ function TiltCard({ title, body }: { title: string; body: string }) {
   );
 }
 
+function Stat({ n, label }: { n: string; label: string }) {
+  return (
+    <div className="rounded-2xl border border-emerald-200 bg-white/70 px-4 py-6 text-center backdrop-blur">
+      <div className="text-4xl font-black tabular-nums text-emerald-700 md:text-5xl">{n}</div>
+      <div className="mt-2 text-sm font-medium text-emerald-800/70">{label}</div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [scroll, setScroll] = useState(0);
   const [lang, setLang] = useState<Lang>("en");
@@ -135,6 +174,11 @@ export default function Home() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  const safety = [
+    t("safe1"), t("safe2"), t("safe3"), t("safe4"),
+    t("safe5"), t("safe6"), t("safe7"), t("safe8"),
+  ];
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-sky-100 via-emerald-50 to-amber-50 text-emerald-950">
@@ -149,6 +193,7 @@ export default function Home() {
         {lang === "id" ? "English" : "Bahasa Indonesia"}
       </button>
 
+      {/* ---------------- hero ---------------- */}
       <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 text-center">
         <div
           className="pointer-events-none absolute inset-0"
@@ -164,10 +209,10 @@ export default function Home() {
           </p>
         </Reveal>
         <Reveal delay={120}>
-          <h1 className="max-w-3xl text-5xl font-bold leading-tight md:text-7xl">Meadowfar</h1>
+          <h1 className="max-w-3xl text-6xl font-black leading-tight tracking-tight md:text-8xl">Meadowfar</h1>
         </Reveal>
         <Reveal delay={240}>
-          <p className="mt-6 max-w-xl text-lg leading-relaxed text-emerald-800/80">{t("tagline")}</p>
+          <p className="mt-6 max-w-2xl text-lg leading-relaxed text-emerald-800/80">{t("tagline")}</p>
         </Reveal>
         <Reveal delay={360}>
           <Link
@@ -193,17 +238,39 @@ export default function Home() {
         <div className="absolute bottom-8 animate-bounce text-sm text-emerald-700/60">{t("scroll")}</div>
       </section>
 
-      <div className="overflow-hidden border-y border-emerald-200 bg-white/60 py-4">
-        <div className="flex animate-marquee whitespace-nowrap text-lg font-medium text-emerald-700">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <span key={i} className="mx-4">
-              {t("marquee")}
-            </span>
-          ))}
+      {/* ---------------- statement / manifesto ---------------- */}
+      <section className="border-y border-emerald-200 bg-white/60 py-24">
+        <div className="mx-auto max-w-4xl px-6 text-center">
+          <Reveal>
+            <p className="mb-4 text-sm font-bold uppercase tracking-[0.2em] text-emerald-600">
+              {t("stmtKicker")}
+            </p>
+          </Reveal>
+          <Reveal delay={120}>
+            <p className="text-balance text-2xl font-medium leading-relaxed text-emerald-900 md:text-3xl">
+              {t("stmtBody")}
+            </p>
+          </Reveal>
         </div>
-      </div>
+      </section>
 
+      {/* ---------------- world stats ---------------- */}
       <section className="mx-auto max-w-5xl px-6 py-24">
+        <Reveal>
+          <h2 className="mb-12 text-center text-3xl font-bold md:text-4xl">{t("statsTitle")}</h2>
+        </Reveal>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+          <Reveal delay={0}><Stat n="6" label={t("stBiomes")} /></Reveal>
+          <Reveal delay={60}><Stat n="5" label={t("stQuestTypes")} /></Reveal>
+          <Reveal delay={120}><Stat n="12" label={t("stChapters")} /></Reveal>
+          <Reveal delay={180}><Stat n="6" label={t("stChars")} /></Reveal>
+          <Reveal delay={240}><Stat n="24" label={t("stAch")} /></Reveal>
+          <Reveal delay={300}><Stat n="Rp0" label={t("stCost")} /></Reveal>
+        </div>
+      </section>
+
+      {/* ---------------- features ---------------- */}
+      <section className="mx-auto max-w-5xl px-6 pb-24">
         <Reveal>
           <h2 className="mb-12 text-center text-3xl font-bold md:text-4xl">{t("featuresTitle")}</h2>
         </Reveal>
@@ -220,26 +287,23 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ---------------- safety / parents ---------------- */}
       <section className="bg-emerald-900 py-24 text-emerald-50">
-        <div className="mx-auto max-w-4xl px-6">
+        <div className="mx-auto max-w-5xl px-6">
           <Reveal>
-            <h2 className="mb-12 text-center text-3xl font-bold md:text-4xl">{t("howTitle")}</h2>
+            <h2 className="text-center text-3xl font-bold md:text-4xl">{t("safeTitle")}</h2>
           </Reveal>
-          <div className="space-y-8">
-            {[
-              [t("s1t"), t("s1b")],
-              [t("s2t"), t("s2b")],
-              [t("s3t"), t("s3b")],
-            ].map(([title, body], i) => (
-              <Reveal key={i} delay={i * 120}>
-                <div className="flex items-start gap-6 rounded-2xl bg-emerald-800/60 p-6">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-400 text-lg font-bold text-emerald-950">
-                    {i + 1}
+          <Reveal delay={120}>
+            <p className="mx-auto mt-3 max-w-2xl text-center text-emerald-100/70">{t("safeSub")}</p>
+          </Reveal>
+          <div className="mt-12 grid gap-4 sm:grid-cols-2">
+            {safety.map((s, i) => (
+              <Reveal key={i} delay={i * 60}>
+                <div className="flex items-center gap-4 rounded-2xl bg-emerald-800/60 p-5">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-400 text-base font-bold text-emerald-950">
+                    ✓
                   </span>
-                  <div>
-                    <h3 className="text-xl font-semibold">{title}</h3>
-                    <p className="mt-1 text-emerald-100/70">{body}</p>
-                  </div>
+                  <span className="text-emerald-50/90">{s}</span>
                 </div>
               </Reveal>
             ))}
@@ -247,9 +311,36 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ---------------- how to play ---------------- */}
+      <section className="mx-auto max-w-4xl px-6 py-24">
+        <Reveal>
+          <h2 className="mb-12 text-center text-3xl font-bold md:text-4xl">{t("howTitle")}</h2>
+        </Reveal>
+        <div className="space-y-6">
+          {[
+            [t("s1t"), t("s1b")],
+            [t("s2t"), t("s2b")],
+            [t("s3t"), t("s3b")],
+          ].map(([title, body], i) => (
+            <Reveal key={i} delay={i * 120}>
+              <div className="flex items-start gap-6 rounded-2xl border border-emerald-200 bg-white p-6 shadow-sm">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-lg font-bold text-white">
+                  {i + 1}
+                </span>
+                <div>
+                  <h3 className="text-xl font-semibold text-emerald-900">{title}</h3>
+                  <p className="mt-1 text-emerald-800/70">{body}</p>
+                </div>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+      </section>
+
+      {/* ---------------- final CTA ---------------- */}
       <section className="flex flex-col items-center px-6 py-28 text-center">
         <Reveal>
-          <h2 className="max-w-2xl text-3xl font-bold md:text-5xl">{t("ctaTitle")}</h2>
+          <h2 className="max-w-2xl text-balance text-3xl font-bold md:text-5xl">{t("ctaTitle")}</h2>
         </Reveal>
         <Reveal delay={150}>
           <Link
@@ -259,7 +350,7 @@ export default function Home() {
             {t("ctaBtn")}
           </Link>
         </Reveal>
-        <p className="mt-16 text-sm text-emerald-700/60">{t("footer")}</p>
+        <p className="mt-16 max-w-xl text-sm text-emerald-700/60">{t("studio")}</p>
       </section>
     </main>
   );
