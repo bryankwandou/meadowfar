@@ -42,3 +42,22 @@ body {
 .animate-float { animation: float 6s ease-in-out infinite; }
 .animate-float-slow { animation: float 9s ease-in-out infinite; }
 .animate-marquee { animation: marquee 22s linear infinite; }
+
+/* Respect kids/parents who ask their device to reduce motion: stop the
+   decorative looping animations and keep transitions near-instant. The 3D
+   game itself stays playable — only non-essential motion is calmed. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-float,
+  .animate-float-slow,
+  .animate-marquee {
+    animation: none !important;
+  }
+}

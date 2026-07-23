@@ -62,6 +62,10 @@ Catatan jujur: daftar 50.000 butir tidak akan membantu siapa pun — yang pentin
 - [x] Kaki & tangan berayun dari pinggul/bahu (pivot sendi, bukan tengah limb) — langkah lebih natural
 - [x] Penggeser volume suara 0–100 (master gain WebAudio, live, tersimpan) — bukan cuma nyala/mati
 - [x] Animasi berenang di danau: pose telungkup, tangan mengayuh bergantian, kaki menendang, badan mengapung
+- [x] Grafik lebih realistis: ACES filmic tone mapping + exposure, sRGB output, bayangan lembut (bias/normalBias/radius)
+- [x] Hormati prefers-reduced-motion: animasi dekoratif berhenti untuk anak/perangkat yang minta kurangi gerak
+- [x] Gambar pratinjau OpenGraph saat link dibagikan (app/opengraph-image.tsx, bertema padang rumput)
+- [x] Uji browser nyata (Chrome+WebGL): canvas true, slider volume operable, 0 error konsol
 
 ## Kualitas
 - [x] Build produksi lolos TypeScript ketat

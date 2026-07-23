@@ -364,6 +364,11 @@ export default function Game() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, LOW ? 1.25 : 2));
     renderer.shadowMap.enabled = !LOW;
     renderer.shadowMap.type = LOW ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
+    // Filmic tone mapping gives natural highlight roll-off and richer colour
+    // than raw linear output — the single biggest "looks real" win here.
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = LOW ? 1.0 : 1.12;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     mount.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -395,6 +400,12 @@ export default function Game() {
     sun.shadow.camera.right = 80;
     sun.shadow.camera.top = 80;
     sun.shadow.camera.bottom = -80;
+    sun.shadow.camera.near = 1;
+    sun.shadow.camera.far = 220;
+    // bias tuning kills shadow acne + peter-panning; radius softens the edge
+    sun.shadow.bias = -0.0004;
+    sun.shadow.normalBias = 0.04;
+    if (!LOW) sun.shadow.radius = 3;
     scene.add(sun);
     const hemi = new THREE.HemisphereLight(0xcfeaff, 0x7cc26a, 1.1);
     scene.add(hemi);
