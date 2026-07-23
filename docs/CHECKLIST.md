@@ -60,6 +60,7 @@ Catatan jujur: daftar 50.000 butir tidak akan membantu siapa pun — yang pentin
 - [x] Efek ambil item: percikan kristal berhamburan + angka "+skor" melayang naik
 - [x] Tombol "ganti tokoh" di dalam game (tanpa muat ulang halaman)
 - [x] Kaki & tangan berayun dari pinggul/bahu (pivot sendi, bukan tengah limb) — langkah lebih natural
+- [x] Penggeser volume suara 0–100 (master gain WebAudio, live, tersimpan) — bukan cuma nyala/mati
 
 ## Kualitas
 - [x] Build produksi lolos TypeScript ketat
