@@ -141,6 +141,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: "ride-5", nama: "Sahabat semua hewan", namaEn: "Friend of every creature", keterangan: "Tunggangi 5 jenis hewan berbeda", keteranganEn: "Ride five different kinds of animal" },
   { id: "craft-1", nama: "Juru masak kecil", namaEn: "Little cook", keterangan: "Gabungkan bahan menjadi item baru", keteranganEn: "Combine ingredients into a new item" },
   { id: "forage-50", nama: "Pengumpul ulung", namaEn: "Keen forager", keterangan: "Petik 50 bahan dari alam", keteranganEn: "Gather 50 ingredients in the wild" },
+  { id: "story-24", nama: "Dua penjaga", namaEn: "Two keepers", keterangan: "Selesaikan babak kedua kisah Sela", keteranganEn: "Finish the second act, the story of Sela" },
 ];
 
 export type GameMode = "casual" | "adventure";
@@ -157,7 +158,7 @@ export interface Progress {
   tools: string[];
   achievements: string[];
   lastHero: HeroId | null;
-  storyChapter: number; // 0..12, chapters of "Bintang yang Hilang" heard so far
+  storyChapter: number; // 0..24, chapters of "Bintang yang Hilang" heard so far
   pet: string | null; // active companion id
   racesWon: number; // timed races finished in time
   treasuresFound: number; // treasure chests opened
@@ -232,7 +233,7 @@ export function maxProgress(): Progress {
     tools: TOOLS.map((t) => t.id),
     achievements: ACHIEVEMENTS.map((a) => a.id),
     lastHero: "wizard",
-    storyChapter: 12,
+    storyChapter: 24,
     pet: "bird",
     racesWon: 99,
     treasuresFound: 99,
@@ -309,7 +310,7 @@ export function sanitizeProgress(raw: unknown): Progress {
       typeof r.lastHero === "string" && HEROES.some((h) => h.id === r.lastHero)
         ? (r.lastHero as HeroId)
         : null,
-    storyChapter: Math.min(12, Math.floor(num(r.storyChapter, 12))),
+    storyChapter: Math.min(24, Math.floor(num(r.storyChapter, 24))),
     pet:
       typeof r.pet === "string" && PETS.some((p) => p.id === r.pet)
         ? r.pet

@@ -67,7 +67,7 @@ function request(key: string, make: (typeof queue)[number]["make"], cb: (url: st
 }
 
 const FRAMES: Record<Slot, { pos: [number, number, number]; look: [number, number, number]; fov: number; turn: number }> = {
-  hat: { pos: [1.5, 3.3, 2.6], look: [0, 2.72, 0], fov: 30, turn: 0 },
+  hat: { pos: [1.3, 3.05, 2.2], look: [0, 2.62, 0], fov: 30, turn: 0 },
   outfit: { pos: [1.6, 2.2, 6.2], look: [0, 1.55, 0], fov: 30, turn: 0 },
   cape: { pos: [-1.8, 2.2, -5.2], look: [0, 1.6, 0], fov: 32, turn: 0 },
   back: { pos: [-1.8, 2.3, -4.2], look: [0, 1.8, 0], fov: 32, turn: 0 },

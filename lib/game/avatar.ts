@@ -27,12 +27,20 @@ function mat(color: number, glow = false, rough = 0.62, metal = 0) {
   const key = `${color}-${glow}-${rough}-${metal}`;
   let m = matCache.get(key);
   if (!m) {
-    m = new THREE.MeshStandardMaterial({
+    // physical material: soft fabrics and skin get a sheen lobe (the velvety
+    // edge highlight real cloth has); metals and glossy parts get clearcoat
+    const fabric = !glow && metal === 0 && rough >= 0.55;
+    m = new THREE.MeshPhysicalMaterial({
       color,
       roughness: rough,
       metalness: metal,
       emissive: glow ? color : 0x000000,
       emissiveIntensity: glow ? 0.55 : 0,
+      sheen: fabric ? 0.7 : 0,
+      sheenRoughness: 0.75,
+      sheenColor: new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.45),
+      clearcoat: metal > 0 || rough < 0.4 ? 0.5 : 0,
+      clearcoatRoughness: 0.25,
     });
     matCache.set(key, m);
   }
@@ -71,7 +79,9 @@ export function buildAvatar(hero: HeroDef, equip: Equip = DEFAULT_EQUIP): Avatar
 
   // head: rounded, with hair cap, eyes that catch the light, rosy cheeks
   const head = new THREE.Group();
-  head.position.set(0, 2.42, 0);
+  // closer to real body proportions: the head is about a sixth of the height
+  head.position.set(0, 2.36, 0);
+  head.scale.setScalar(0.8);
   const skull = mesh(new THREE.SphereGeometry(0.42, 20, 16), skin);
   const hairCap = mesh(
     new THREE.SphereGeometry(0.45, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.55),

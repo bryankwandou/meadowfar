@@ -1,5 +1,6 @@
 // "Bintang yang Hilang dari Langit Meadowfar" / "The Lost Stars of Meadowfar"
-// 12 chapters told by village elders, in both Indonesian and English.
+// Act I (12 chapters): the missing stars. Act II (12 chapters): the lantern
+// keeper Sela, who took them out of loneliness. Indonesian and English.
 
 export interface Chapter {
   bab: number;
@@ -18,6 +19,9 @@ export const CHAPTER_TASK: Record<number, "collect" | "race" | "treasure" | "del
   1: "collect", 2: "collect", 3: "race", 4: "treasure",
   5: "treasure", 6: "delivery", 7: "shard", 8: "collect",
   9: "race", 10: "delivery", 11: "shard", 12: "shard",
+  13: "collect", 14: "collect", 15: "delivery", 16: "race",
+  17: "treasure", 18: "delivery", 19: "collect", 20: "collect",
+  21: "shard", 22: "collect", 23: "delivery", 24: "shard",
 };
 
 export const STORY: Chapter[] = [
@@ -126,7 +130,116 @@ export const STORY: Chapter[] = [
     teks: "Sekarang menoleh ke atas. Bintang kecil itu ada di langit lagi — pulang tepat saat kamu mendengar kata-kata ini. Langit Meadowfar utuh kembali, dan mulai malam ini semua bintang bersinar untukmu, sang Penjaga Bintang. Kisah selesai, tapi padang ini selamanya rumahmu.",
     judulEn: "Keeper of the stars",
     teksEn: "Now look up. The little star is back in the sky — it returned the very moment you heard these words. The sky of Meadowfar is whole again, and from tonight on, every star shines for you, Keeper of the Stars. The story is finished, but this meadow is your home forever.",
-    tugas: "Tidak ada lagi tugas. Pulanglah ke rumah pohonmu dan hiasi sesukamu.",
-    tugasEn: "No more tasks. Go home to your tree house and decorate it however you like.",
+    tugas: "Istirahatlah sebentar di rumah pohon. Besok pagi, Tetua Wren ingin bicara lagi.",
+    tugasEn: "Rest a while at the tree house. Tomorrow morning, Elder Wren wants to talk again.",
+  },
+  // ---------------- Act II: The Keeper Beneath the Mountain ----------------
+  {
+    bab: 13,
+    judul: "Surat tanpa nama",
+    teks: "Pagi ini ada surat terselip di pintu rumah pohonmu. Kertasnya dingin seperti batu gunung, dan tintanya berkilau biru. Isinya hanya satu kalimat: \"Aku yang mengambil bintang-bintang itu, dan aku menyesal.\" Tetua Wren membacanya dua kali, lalu diam lama sekali.",
+    judulEn: "A letter with no name",
+    teksEn: "This morning a letter was tucked into the door of your tree house. The paper was cold as mountain stone, and the ink shimmered blue. It held a single sentence: \"I am the one who took the stars, and I am sorry.\" Elder Wren read it twice, then said nothing for a long while.",
+    tugas: "Tinta biru itu berbau kristal. Kumpulkan serpihan kristal untuk dibandingkan.",
+    tugasEn: "The blue ink smells of crystal. Collect crystal pieces so the elders can compare them.",
+  },
+  {
+    bab: 14,
+    judul: "Pembuat peta Tomas",
+    teks: "Tomas, pembuat peta tua di desa sebelah, mengenali warna tinta itu. \"Hanya ada satu tempat yang kristalnya menyala sebiru ini,\" katanya sambil membuka gulungan peta yang sudah robek di tepinya. \"Gua Kristal. Tapi separuh petaku hilang bertahun-tahun lalu, tepat di malam bintang menghilang.\"",
+    judulEn: "Tomas the mapmaker",
+    teksEn: "Tomas, the old mapmaker from the next village, recognised the colour of that ink. \"Only one place has crystals that burn this blue,\" he said, unrolling a map torn along one edge. \"The Crystal Cave. But half of my map went missing years ago, on the very night the stars disappeared.\"",
+    tugas: "Masuki Gua Kristal dan bawa pulang permata biru sebagai bukti.",
+    tugasEn: "Enter the Crystal Cave and bring back a blue gem as proof.",
+  },
+  {
+    bab: 15,
+    judul: "Ukiran di dinding gua",
+    teks: "Di balik tirai kristal, kamu menemukan ukiran yang tidak pernah dilihat siapa pun: seorang gadis memegang lentera, berdiri sendirian di puncak gunung, dikelilingi dua belas titik cahaya. Di bawahnya tertulis sebuah nama yang hampir terhapus: Sela.",
+    judulEn: "Carvings on the cave wall",
+    teksEn: "Behind a curtain of crystal you found carvings no one had ever seen: a girl holding a lantern, standing alone on a mountaintop, surrounded by twelve points of light. Beneath it, a name almost worn away: Sela.",
+    tugas: "Tetua perlu tahu siapa Sela. Antarkan salinan ukiran itu ke desa terdekat.",
+    tugasEn: "The elders need to know who Sela is. Deliver a copy of the carving to the nearest village.",
+  },
+  {
+    bab: 16,
+    judul: "Penjaga lentera",
+    teks: "Nenek tertua di desa itu menangis mendengar nama Sela. Dulu, Sela adalah penjaga lentera yang menyalakan jalan bagi pelancong di pegunungan. Ketika jalan baru dibangun di lembah, tidak ada lagi yang mendaki. Lenteranya tetap menyala, tapi tidak ada yang datang, dan tidak ada yang ingat mengucapkan terima kasih.",
+    judulEn: "The lantern keeper",
+    teksEn: "The oldest grandmother in that village wept when she heard Sela's name. Long ago, Sela was the lantern keeper who lit the path for travellers in the mountains. When a new road was built through the valley, nobody climbed anymore. Her lantern kept burning, but no one came, and no one remembered to say thank you.",
+    tugas: "Jalan gunung lama masih ada. Tempuh jalurnya secepat mungkin sebelum gelap.",
+    tugasEn: "The old mountain path is still there. Run its course as fast as you can before dark.",
+  },
+  {
+    bab: 17,
+    judul: "Aula yang tertutup debu",
+    teks: "Jalur itu berakhir di Aula Gunung. Rak-raknya penuh buku catatan tamu, dan halaman terakhirnya bertanggal hari yang sama dengan hilangnya bintang. Di sana, dengan tulisan tangan kecil: \"Jika tidak ada yang melihat cahayaku, akan kupinjam cahaya langit, supaya aku tidak sendirian.\"",
+    judulEn: "The hall under the dust",
+    teksEn: "The path ended at the Mountain Hall. Its shelves were full of guest books, and the last page was dated the same day the stars vanished. There, in small handwriting: \"If no one sees my light, I will borrow the light of the sky, so I am not alone.\"",
+    tugas: "Naiki tangga aula ke balkon dan buka peti yang sudah lama terkunci.",
+    tugasEn: "Climb the hall stairs to the balcony and open the chest that has been locked for years.",
+  },
+  {
+    bab: 18,
+    judul: "Separuh peta yang hilang",
+    teks: "Di dalam peti ada separuh peta Tomas, dilipat rapi dan disimpan baik-baik. Sela tidak mencurinya untuk menyakiti. Ia menyimpannya karena hanya peta itu yang menunjukkan jalan ke rumahnya, dan ia berharap suatu hari ada yang cukup peduli untuk mencarinya.",
+    judulEn: "The missing half of the map",
+    teksEn: "Inside the chest was the other half of Tomas's map, folded neatly and kept safe. Sela had not stolen it to hurt anyone. She kept it because it was the only map that showed the way to her home, and she hoped that one day someone would care enough to come looking.",
+    tugas: "Kembalikan peta itu ke Tomas. Ia sudah menunggu terlalu lama.",
+    tugasEn: "Return the map to Tomas. He has waited far too long.",
+  },
+  {
+    bab: 19,
+    judul: "Latihan di arena",
+    teks: "Peta lengkap Tomas menunjukkan jalan ke puncak tertinggi, tapi jalannya dijaga slime-slime penjaga yang dulu diberi tugas oleh Sela: jangan biarkan siapa pun lewat. Mereka tidak jahat, hanya setia pada perintah lama. Para pelatih di Arena Latihan bisa mengajarimu cara meletuskan mereka dengan lembut.",
+    judulEn: "Training in the arena",
+    teksEn: "Tomas's completed map shows the way to the highest peak, but the path is guarded by slimes Sela once gave a single order: let no one through. They are not wicked, just loyal to an old command. The trainers at the Training Arena can teach you how to pop them gently.",
+    tugas: "Berlatihlah di Arena Latihan sampai tongkat gelembungmu terasa ringan.",
+    tugasEn: "Train at the Training Arena until your bubble wand feels light in your hand.",
+  },
+  {
+    bab: 20,
+    judul: "Bekal perjalanan panjang",
+    teks: "\"Tidak ada yang mendaki gunung dengan perut kosong,\" kata Tetua Wren sambil menyiapkan keranjang. Pendakian ke puncak Sela butuh sehari penuh. Beri dari semak, jamur dari hutan yang teduh, bunga dari padang: semuanya bisa diracik jadi bekal yang menghangatkan.",
+    judulEn: "Supplies for a long road",
+    teksEn: "\"Nobody climbs a mountain on an empty stomach,\" said Elder Wren, packing a basket. The climb to Sela's peak takes a full day. Berries from the bushes, mushrooms from the shady woods, flowers from the meadow: all of it can be cooked into food that keeps you warm.",
+    tugas: "Petik bahan di alam dan racik sup jamur atau teh bunga untuk perjalanan.",
+    tugasEn: "Gather ingredients in the wild and craft mushroom soup or flower tea for the journey.",
+  },
+  {
+    bab: 21,
+    judul: "Tunggangan dari lembah",
+    teks: "Kuda-kuda liar di lembah dulu mengantar para pelancong ke lentera Sela. Mereka masih ingat jalannya. Jika kamu mendekat dengan tenang, salah satu dari mereka akan membiarkanmu naik dan membawamu lebih jauh daripada kakimu sendiri.",
+    judulEn: "A ride from the valley",
+    teksEn: "The wild horses of the valley once carried travellers up to Sela's lantern. They still remember the way. If you walk up to them calmly, one of them will let you climb on and carry you further than your own feet could.",
+    tugas: "Tunggangi hewan liar dan capai altar bintang di kaki gunung.",
+    tugasEn: "Ride a wild animal and reach the star altar at the foot of the mountain.",
+  },
+  {
+    bab: 22,
+    judul: "Lentera di puncak",
+    teks: "Di puncak, lentera Sela masih menyala redup. Sela sendiri duduk di sampingnya, jauh lebih kecil daripada yang kamu bayangkan, memeluk lututnya. Di sekelilingnya, dua belas bintang pinjaman berputar pelan. \"Kamu datang,\" bisiknya. \"Sudah lama sekali tidak ada yang datang.\"",
+    judulEn: "The lantern on the peak",
+    teksEn: "At the summit, Sela's lantern still glowed faintly. Sela herself sat beside it, much smaller than you had imagined, hugging her knees. Around her, twelve borrowed stars circled slowly. \"You came,\" she whispered. \"It has been so long since anyone came.\"",
+    tugas: "Jangan terburu-buru. Kumpulkan cahaya kecil di puncak dan duduklah bersamanya.",
+    tugasEn: "Do not hurry. Gather the small lights on the peak and sit with her a while.",
+  },
+  {
+    bab: 23,
+    judul: "Pilihan Sela",
+    teks: "Kamu tidak memarahinya, dan kamu tidak memaksanya. Kamu hanya bercerita tentang desa-desa, tentang Tomas yang kembali tersenyum, tentang nenek yang masih ingat namanya. Perlahan, Sela membuka tangannya. \"Kalau aku mengembalikan bintang-bintang ini,\" tanyanya, \"apakah masih ada yang akan datang?\"",
+    judulEn: "Sela's choice",
+    teksEn: "You did not scold her, and you did not force her. You simply told her about the villages, about Tomas smiling again, about the grandmother who still remembered her name. Slowly, Sela opened her hands. \"If I give the stars back,\" she asked, \"will anyone still come?\"",
+    tugas: "Berikan jawabanmu dengan perbuatan: antarkan undangan dari semua desa kepadanya.",
+    tugasEn: "Answer her with deeds: deliver an invitation from every village to her door.",
+  },
+  {
+    bab: 24,
+    judul: "Dua penjaga, satu langit",
+    teks: "Malam itu, dua belas bintang pinjaman naik kembali ke langit, dan lentera Sela menyala paling terang di seluruh pegunungan. Sekarang jalan gunung ramai lagi: anak-anak mendaki untuk mendengar ceritanya, dan Sela menyalakan jalan untuk mereka setiap senja. Langit punya dua penjaga sekarang, dan tidak ada yang sendirian lagi.",
+    judulEn: "Two keepers, one sky",
+    teksEn: "That night the twelve borrowed stars rose back into the sky, and Sela's lantern burned brighter than any light in the mountains. The mountain path is busy again: children climb to hear her stories, and Sela lights the way for them every dusk. The sky has two keepers now, and no one is alone anymore.",
+    tugas: "Kisah ini selesai. Ajak temanmu ke ruang main bareng dan jelajahi dunia bersama.",
+    tugasEn: "This story is complete. Invite a friend into a shared room and explore the world together.",
   },
 ];
