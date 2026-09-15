@@ -95,8 +95,8 @@ export type Biome = "grass" | "desert" | "snow";
 // Temperature-style field: warm patches become desert, cold ones snow.
 export function biomeAt(x: number, z: number): Biome {
   const n = fbm(x * 0.0016, z * 0.0016, 3, 51);
-  if (n > 0.3) return "desert";
-  if (n < -0.3) return "snow";
+  if (n > 0.42) return "desert";
+  if (n < -0.42) return "snow";
   return "grass";
 }
 

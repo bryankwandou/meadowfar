@@ -22,7 +22,8 @@ export function nearLandmark(x: number, z: number, r: number) {
 }
 
 export function villagePos(rx: number, rz: number) {
-  if (hash2(rx * 13.7 + 5, rz * 9.1 + 3) > 0.55) return null;
+  // roughly one region in four has a village, so they feel like destinations
+  if (hash2(rx * 13.7 + 5, rz * 9.1 + 3) > 0.26) return null;
   const ox = (hash2(rx, rz * 3) - 0.5) * REGION * 0.4;
   const oz = (hash2(rx * 7, rz) - 0.5) * REGION * 0.4;
   const x = rx * REGION + REGION / 2 + ox;
