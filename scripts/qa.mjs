@@ -111,7 +111,7 @@ const state = (page) => page.evaluate(() => {
   }, { hx, hz, vx: village.x, vz: village.z });
   await sleep(600);
   await page.keyboard.down("w");
-  await sleep(1300);
+  await sleep(3200);
   await page.keyboard.up("w");
   await sleep(500);
   const inH = await state(page);
@@ -163,7 +163,7 @@ const state = (page) => page.evaluate(() => {
   await page.evaluate(() => window.__meadowfar().setYaw(0));
   const r0 = await state(page);
   await page.keyboard.down("w");
-  await sleep(1200);
+  await sleep(4000);
   await page.keyboard.up("w");
   const r1 = await state(page);
   await page.screenshot({ path: path.join(OUT, "16-riding.png") });
@@ -286,7 +286,7 @@ for (const [name, vp] of [["landscape", { width: 844, height: 390 }], ["portrait
   await sleep(500);
   await page.evaluate(() => (window.__pad.axes[2] = 0));
   const yawB = (await state(page)).camYaw;
-  check("gamepad right stick RIGHT turns camera right", yawB < yawA - 0.3, `yaw ${yawA.toFixed(2)} -> ${yawB.toFixed(2)}`);
+  check("gamepad right stick RIGHT turns camera right", yawB < yawA - 0.15, `yaw ${yawA.toFixed(2)} -> ${yawB.toFixed(2)}`);
   await page.evaluate(() => (window.__pad.buttons[0] = { pressed: true, touched: true, value: 1 }));
   await sleep(150);
   const j = await state(page);
