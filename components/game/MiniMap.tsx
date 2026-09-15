@@ -81,11 +81,15 @@ function drawMarkers(ctx: CanvasRenderingContext2D, W: number, s: MapState, cx: 
     ctx.fillStyle = "#fff";
     ctx.fillText(t, toX(x), toY(z) + dy);
   };
-  const unit = W / 180;
-  for (const a of s.animals) dot(a.x, a.z, 2.2 * unit, "#c48a4a", "rgba(255,255,255,0.8)");
+  // markers shrink as the map zooms out, names only when there is room
+  const zoomK = Math.max(0.3, Math.min(1, 320 / range));
+  const unit = (W / 180) * (labels ? zoomK * 0.7 : 1);
+  const showNames = labels && range <= 700;
+  const plain = (t: string, x: number, z: number, dy: number) => showNames && text(t, x, z, dy);
+  if (range <= 1300) for (const a of s.animals) dot(a.x, a.z, 2.2 * unit, "#c48a4a", "rgba(255,255,255,0.8)");
   for (const v of villagesIn(cx - range, cz - range, cx + range, cz + range)) {
     dot(v.x, v.z, 4 * unit, "#e0833a");
-    text(villageName(v.x, v.z), v.x, v.z, -9 * unit);
+    plain(villageName(v.x, v.z), v.x, v.z, -12);
   }
   dot(VILLAGE0.x, VILLAGE0.z, 4 * unit, "#e0833a");
   text(pick(lang, "Desa Padang", "Meadow Village"), VILLAGE0.x, VILLAGE0.z, -9 * unit);
