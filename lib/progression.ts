@@ -1,5 +1,15 @@
 // Shared progression rules — used by the game client, the API, and the seed script.
 
+import {
+  COSMETICS,
+  DEFAULT_EQUIP,
+  DEVNET_COSMETICS,
+  ITEMS,
+  SLOTS,
+  STARTER_COSMETICS,
+  type Slot,
+} from "@/lib/catalog";
+
 export type HeroId = "girl" | "boy" | "knight" | "explorer" | "wizard" | "robot";
 
 export interface HeroDef {
@@ -31,7 +41,7 @@ export interface SkillDef {
 }
 
 export const SKILLS: SkillDef[] = [
-  { id: "sprint", nama: "Lari kilat", namaEn: "Swift sprint", level: 2, keterangan: "Tahan Shift untuk berlari lebih cepat", keteranganEn: "Hold Shift to run faster" },
+  { id: "sprint", nama: "Lari kilat", namaEn: "Swift sprint", level: 2, keterangan: "Tahan Shift / B / tombol Lari untuk berlari lebih cepat", keteranganEn: "Hold Shift, gamepad B or the Run button to go faster" },
   { id: "doublejump", nama: "Lompat ganda", namaEn: "Double jump", level: 4, keterangan: "Tekan lompat sekali lagi di udara", keteranganEn: "Press jump once more in mid-air" },
   { id: "magnet", nama: "Magnet bintang", namaEn: "Star magnet", level: 6, keterangan: "Item terdekat tertarik sendiri kepadamu", keteranganEn: "Nearby items float toward you on their own" },
   { id: "glide", nama: "Meluncur angin", namaEn: "Wind glide", level: 9, keterangan: "Tahan lompat saat jatuh untuk melayang pelan", keteranganEn: "Hold jump while falling to drift down slowly" },
@@ -121,7 +131,19 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: "delivery-1", nama: "Kurir padang", namaEn: "Meadow courier", keterangan: "Antarkan paket pertamamu sampai tujuan", keteranganEn: "Deliver your first package" },
   { id: "home-1", nama: "Rumahku istanaku", namaEn: "Home sweet home", keterangan: "Pasang hiasan pertama di rumah pohonmu", keteranganEn: "Place your first decoration on your tree house" },
   { id: "starquest-3", nama: "Pemulih bintang", namaEn: "Star mender", keterangan: "Selesaikan 3 misi pecahan bintang dari tetua", keteranganEn: "Finish 3 star-shard quests from the elders" },
+  { id: "inside-1", nama: "Tamu yang sopan", namaEn: "Polite guest", keterangan: "Masuk ke dalam rumah desa", keteranganEn: "Step inside a village house" },
+  { id: "cave-1", nama: "Penjelajah gua", namaEn: "Cave explorer", keterangan: "Masuki gua kristal", keteranganEn: "Enter the crystal cave" },
+  { id: "hall-1", nama: "Pendaki aula", namaEn: "Hall climber", keterangan: "Capai balkon aula gunung", keteranganEn: "Reach the balcony of the mountain hall" },
+  { id: "arena-1", nama: "Juara gelembung", namaEn: "Bubble champion", keterangan: "Letuskan 10 slime di arena latihan", keteranganEn: "Pop 10 slimes in the training arena" },
+  { id: "together-1", nama: "Main bareng", namaEn: "Better together", keterangan: "Bermain bersama teman di satu ruang", keteranganEn: "Play with a friend in the same room" },
+  { id: "style-1", nama: "Gaya baru", namaEn: "Fresh style", keterangan: "Beli pakaian pertama dari lemari", keteranganEn: "Buy your first outfit piece from the wardrobe" },
+  { id: "ride-1", nama: "Penunggang", namaEn: "Rider", keterangan: "Tunggangi hewan liar", keteranganEn: "Ride a wild animal" },
+  { id: "ride-5", nama: "Sahabat semua hewan", namaEn: "Friend of every creature", keterangan: "Tunggangi 5 jenis hewan berbeda", keteranganEn: "Ride five different kinds of animal" },
+  { id: "craft-1", nama: "Juru masak kecil", namaEn: "Little cook", keterangan: "Gabungkan bahan menjadi item baru", keteranganEn: "Combine ingredients into a new item" },
+  { id: "forage-50", nama: "Pengumpul ulung", namaEn: "Keen forager", keterangan: "Petik 50 bahan dari alam", keteranganEn: "Gather 50 ingredients in the wild" },
 ];
+
+export type GameMode = "casual" | "adventure";
 
 export interface Progress {
   xp: number;
@@ -143,6 +165,14 @@ export interface Progress {
   starQuests: number; // elder star-shard follow-up quests finished
   decors: string[]; // decoration ids the player has earned
   placedDecors: string[]; // decoration ids placed on the tree house
+  coins: number; // earned by playing, spent in the wardrobe shop
+  owned: string[]; // cosmetic ids bought with coins
+  devnet: string[]; // cosmetic ids granted by a verified devnet transfer (server-owned)
+  equip: Record<Slot, string>;
+  inventory: Record<string, number>;
+  mode: GameMode;
+  slimesPopped: number;
+  gemsFound: number;
 }
 
 // Which decorations are earned given how many quests have been finished.
@@ -178,6 +208,14 @@ export function defaultProgress(): Progress {
     starQuests: 0,
     decors: [],
     placedDecors: [],
+    coins: 60, // enough for a first small treat so the shop makes sense on day one
+    owned: [...STARTER_COSMETICS],
+    devnet: [],
+    equip: { ...DEFAULT_EQUIP },
+    inventory: { apple: 2 },
+    mode: "casual",
+    slimesPopped: 0,
+    gemsFound: 0,
   };
 }
 
@@ -202,6 +240,14 @@ export function maxProgress(): Progress {
     starQuests: 12,
     decors: DECORS.map((d) => d.id),
     placedDecors: DECORS.map((d) => d.id),
+    coins: 9999,
+    owned: COSMETICS.filter((c) => !c.devnetLamports).map((c) => c.id),
+    devnet: [],
+    equip: { ...DEFAULT_EQUIP, hat: "hat-star", cape: "cape-starry", shoes: "shoes-glow" },
+    inventory: { apple: 20, pie: 5, candy: 5, gem: 12, shell: 8, berry: 15, flower: 15, mushroom: 10, tea: 3, soup: 2, charm: 2 },
+    mode: "adventure",
+    slimesPopped: 250,
+    gemsFound: 40,
   };
 }
 
@@ -227,6 +273,25 @@ export function sanitizeProgress(raw: unknown): Progress {
     Array.isArray(v)
       ? v.filter((x): x is string => typeof x === "string" && allowed.includes(x))
       : [];
+  const coinIds = COSMETICS.filter((c) => !c.devnetLamports).map((c) => c.id);
+  const owned = [...new Set([...STARTER_COSMETICS, ...arr(r.owned, coinIds)])];
+  const devnet = [...new Set(arr(r.devnet, DEVNET_COSMETICS))];
+  const wearable = new Set([...owned, ...devnet]);
+  const rawEquip = (r.equip && typeof r.equip === "object" ? r.equip : {}) as Record<string, unknown>;
+  const equip = { ...DEFAULT_EQUIP };
+  SLOTS.forEach((slot) => {
+    const v = rawEquip[slot];
+    const def = COSMETICS.find((c) => c.id === v);
+    if (typeof v === "string" && def && def.slot === slot && wearable.has(v)) equip[slot] = v;
+  });
+  const rawInv = (r.inventory && typeof r.inventory === "object" ? r.inventory : {}) as Record<string, unknown>;
+  const inventory: Record<string, number> = {};
+  ITEMS.forEach((it) => {
+    const n = Math.floor(num(rawInv[it.id], 999));
+    if (n > 0) inventory[it.id] = n;
+  });
+  // A save written before coins existed should still get the starter purse.
+  const coins = typeof r.coins === "number" ? Math.floor(num(r.coins, 1_000_000)) : d.coins;
   return applyUnlocks({
     xp: num(r.xp, 10_000_000),
     bestScore: num(r.bestScore, 10_000_000),
@@ -260,5 +325,13 @@ export function sanitizeProgress(raw: unknown): Progress {
       ]),
     ],
     placedDecors: arr(r.placedDecors, DECORS.map((d) => d.id)),
+    coins,
+    owned,
+    devnet,
+    equip,
+    inventory: r.inventory && typeof r.inventory === "object" ? inventory : d.inventory,
+    mode: r.mode === "adventure" ? "adventure" : "casual",
+    slimesPopped: Math.floor(num(r.slimesPopped, 10_000_000)),
+    gemsFound: Math.floor(num(r.gemsFound, 10_000_000)),
   });
 }

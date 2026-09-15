@@ -1,28 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { detectLang, saveLang, type Lang } from "@/lib/i18n";
+import { useLang } from "@/components/landing/useLang";
+import AuthShell, { inputClass, primaryBtn } from "@/components/landing/AuthShell";
 
 const T = {
-  title: { id: "Masuk kembali", en: "Welcome back" },
-  sub: { id: "Lanjutkan petualangan dari titik terakhirmu.", en: "Continue your adventure right where you left off." },
+  title: { id: "Selamat datang kembali", en: "Welcome back" },
+  sub: { id: "Lanjutkan petualangan dari titik terakhirmu.", en: "Pick up your adventure right where you left off." },
   user: { id: "Nama pengguna atau email", en: "Username or email" },
   password: { id: "Kata sandi", en: "Password" },
   submit: { id: "Masuk", en: "Log in" },
   checking: { id: "Memeriksa...", en: "Checking..." },
   noAccount: { id: "Belum punya akun?", en: "No account yet?" },
   registerFirst: { id: "Daftar dulu", en: "Sign up first" },
-  google: { id: "Masuk dengan Google — segera hadir", en: "Sign in with Google — coming soon" },
+  google: { id: "Masuk dengan Google (segera hadir)", en: "Sign in with Google (coming soon)" },
   connErr: { id: "Tidak bisa terhubung ke server", en: "Could not reach the server" },
   genericErr: { id: "Terjadi kendala, coba lagi", en: "Something went wrong, try again" },
+  guest: { id: "Atau main sebagai tamu", en: "Or play as a guest" },
+  asideTitle: { id: "Rumah pohonmu sudah menunggu.", en: "Your tree house is waiting." },
+  a1: { id: "Level, koin, dan pakaian tetap tersimpan", en: "Levels, coins and outfits are right where you left them" },
+  a2: { id: "Main bareng teman lewat kode ruang", en: "Play with friends using a room code" },
+  a3: { id: "Kisah 12 bab berlanjut dari bab terakhir", en: "The 12-chapter story continues from your last chapter" },
 };
 
 export default function MasukPage() {
   const router = useRouter();
-  const [lang, setLang] = useState<Lang>("en");
-  useEffect(() => setLang(detectLang()), []);
+  const [lang, setLang] = useLang();
   const t = (k: keyof typeof T) => T[k][lang];
 
   const [username, setUsername] = useState("");
@@ -53,71 +58,55 @@ export default function MasukPage() {
     }
   }
 
-  const input =
-    "w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-emerald-950 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200";
-
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-sky-100 to-emerald-100 px-4 py-10">
-      <div className="w-full max-w-md rounded-3xl border border-emerald-200 bg-white/90 p-8 shadow-xl backdrop-blur">
-        <div className="flex items-start justify-between">
-          <h1 className="text-2xl font-bold text-emerald-950">{t("title")}</h1>
-          <button
-            onClick={() => {
-              const next: Lang = lang === "id" ? "en" : "id";
-              setLang(next);
-              saveLang(next);
-            }}
-            className="rounded-lg border border-emerald-300 px-3 py-1 text-xs font-semibold text-emerald-700"
-          >
-            {lang === "id" ? "EN" : "ID"}
-          </button>
-        </div>
-        <p className="mt-1 text-sm text-emerald-700">{t("sub")}</p>
-        <form onSubmit={submit} className="mt-6 flex flex-col gap-4">
-          <label className="text-sm font-medium text-emerald-900">
-            {t("user")}
-            <input
-              className={input}
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-            />
-          </label>
-          <label className="text-sm font-medium text-emerald-900">
-            {t("password")}
-            <input
-              className={input}
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </label>
-          {error && (
-            <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
-          )}
-          <button
-            disabled={busy}
-            className="rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
-          >
-            {busy ? t("checking") : t("submit")}
-          </button>
-        </form>
-        <div className="mt-6 flex flex-col gap-2 text-center text-sm text-emerald-700">
-          <p>
-            {t("noAccount")}{" "}
-            <Link href="/daftar" className="font-semibold underline">
-              {t("registerFirst")}
-            </Link>
+    <AuthShell lang={lang} setLang={setLang} asideTitle={t("asideTitle")} asidePoints={[t("a1"), t("a2"), t("a3")]}>
+      <h1 className="text-3xl font-semibold tracking-tight">{t("title")}</h1>
+      <p className="mt-2 text-ink-soft">{t("sub")}</p>
+      <form onSubmit={submit} className="mt-8 flex flex-col gap-5">
+        <label className="block text-sm font-medium text-ink">
+          {t("user")}
+          <input
+            className={inputClass}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoComplete="username"
+            required
+          />
+        </label>
+        <label className="block text-sm font-medium text-ink">
+          {t("password")}
+          <input
+            className={inputClass}
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+          />
+        </label>
+        {error && (
+          <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            {error}
           </p>
-          <button
-            disabled
-            className="cursor-not-allowed rounded-xl border border-emerald-200 px-4 py-2 text-emerald-400"
-          >
-            {t("google")}
-          </button>
-        </div>
+        )}
+        <button disabled={busy} className={primaryBtn}>
+          {busy ? t("checking") : t("submit")}
+        </button>
+      </form>
+      <div className="mt-6 flex flex-col gap-3 text-center text-sm text-ink-soft">
+        <p>
+          {t("noAccount")}{" "}
+          <Link href="/daftar" className="font-semibold text-leaf underline underline-offset-2">
+            {t("registerFirst")}
+          </Link>
+        </p>
+        <Link href="/play" className="rounded-xl border border-line bg-paper px-4 py-2.5 font-semibold text-ink transition hover:border-ink/30">
+          {t("guest")}
+        </Link>
+        <button disabled className="cursor-not-allowed rounded-xl border border-line px-4 py-2.5 text-ink-soft/70">
+          {t("google")}
+        </button>
       </div>
-    </main>
+    </AuthShell>
   );
 }

@@ -67,6 +67,39 @@ Catatan jujur: daftar 50.000 butir tidak akan membantu siapa pun — yang pentin
 - [x] Gambar pratinjau OpenGraph saat link dibagikan (app/opengraph-image.tsx, bertema padang rumput)
 - [x] Uji browser nyata (Chrome+WebGL): canvas true, slider volume operable, 0 error konsol
 
+## Fase QA/auditor (September 2026)
+- [x] Kontrol relatif kamera: W/stik-atas = maju menjauhi kamera; mouse/stik kanan/geser kanan = putar kanan (tidak terbalik). Invert-Y hanya opsi.
+- [x] Gamepad standar (Xbox/PS di Windows, Android Chrome): stik kiri jalan, stik kanan kamera, A lompat, B lari, X gelembung, Y bicara, LB item, RB/R3 kamera, Start menu
+- [x] Kontroler layar sentuh: stik mengambang beranimasi (knob mengikuti jari), tombol Lompat/Lari/Tiup/Item/Kamera, multi-sentuh via pointer events
+- [x] Kontroler tampil di potret DAN lanskap (dulu tersembunyi oleh `md:hidden` saat HP lanskap lebar >= 768px)
+- [x] Semua tombol HUD dijadikan satu Menu (Esc/Tab/Start/tombol) — tidak perlu keyboard di HP
+- [x] Kamera orang ketiga (orbit, anti tembus dinding) dan orang pertama (V / tombol / RB)
+- [x] Perbaikan rotasi tokoh: sudut di-wrap, tidak lagi berputar jauh saat melewati 180 derajat
+- [x] Perbaikan medan: mesh tiap chunk kini diberi posisi dunia (dulu semua chunk bertumpuk di titik asal → lantai "tembus")
+- [x] Fisika kotak padat: dinding menahan, lantai/tangga/perabot bisa dipijak, plafon menahan lompatan
+- [x] Batang pohon, batu, kaktus kini padat (tidak ada lagi properti palsu yang bisa ditembus)
+- [x] Rumah desa berongga dengan pintu terbuka, lantai, plafon, jendela, tangga depan, kasur, meja, bangku, rak buku, lampu — bisa dimasuki
+- [x] Desa Padang tetap di dekat titik awal (selalu terlihat, termasuk di HP)
+- [x] Rumah pohon: tangga putar, dek berpagar, kabin dengan pintu yang bisa dimasuki
+- [x] Interior terpisah: Gua Kristal (permata), Aula Gunung (tangga ke balkon + peti), Arena Latihan (gelombang slime)
+- [x] Mode Santai (tanpa nyawa) dan Mode Petualangan (5 hati, slime, pingsan = bangun di rumah tanpa kehilangan barang)
+- [x] Tongkat gelembung untuk meletuskan slime (tanpa kekerasan, tanpa darah)
+- [x] Lemari pakaian: 5 slot (kepala, baju, jubah, sepatu, punggung), 27 barang, pratinjau 3D berputar
+- [x] Tas/inventori: apel, pai, permen bintang, permata gua, kerang — bisa dipakai (Q / LB / tombol Item)
+- [x] Koin dari bermain (item, misi, permata, slime, peti) — tidak ada uang sungguhan
+- [x] Pembelian uji Solana DEVNET khusus akun orang tua; server membaca transaksi dari RPC devnet dan mencatat tanda tangan (anti pakai ulang)
+- [x] Main bareng real-time: ruang pribadi kode 6 karakter, maks 12 pemain, WebRTC P2P, snapshot 15 Hz, ping ditampilkan, emote tetap (tanpa chat teks)
+- [x] Pengaturan grafis: preset Rendah/Sedang/Tinggi/Ultra + resolusi render, jarak pandang, kepadatan rumput, bayangan, bloom, AA, FOV, batas FPS, tampilan FPS
+- [x] Langit gradasi + matahari/bulan, medan diwarnai per titik (rumput/pasir/salju/batu), pohon bulat & pinus bertingkat, bunga, awan 3D
+- [x] Streaming chunk bertahap (terdekat dulu, 2 per frame) — mengurangi patah-patah
+- [x] HUD tidak lagi me-render ulang React tiap frame (panah kompas lewat DOM ref)
+- [x] Skrip QA Playwright `scripts/qa.mjs` (desktop, HP lanskap & potret, gamepad simulasi, 2 pemain satu ruang)
+
+### Batas yang jujur
+- Latensi di bawah 4 ms hanya mungkin di jaringan lokal yang sama (Wi-Fi rumah). Lewat internet, cahaya saja butuh ~1 ms per 100 km pulang-pergi; ping umum 20–100 ms. Game menampilkan ping nyata, bukan angka karangan.
+- WebRTC tanpa server TURN bisa gagal di sebagian jaringan sekolah/kantor yang ketat. Butuh layanan TURN berbayar bila ingin 100%.
+- Grafis berbasis geometri prosedural di peramban; tidak setara game AAA berbiaya ratusan juta dolar. Target realistisnya: rapi, berwarna, mulus di laptop sekolah.
+
 ## Kualitas
 - [x] Build produksi lolos TypeScript ketat
 - [x] Deploy produksi terverifikasi setelah setiap fase

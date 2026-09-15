@@ -1,30 +1,74 @@
 @import "tailwindcss";
 
+/* Meadowfar marketing design tokens. The site commits to one warm, light
+   look (the game has its own art direction), so colours are explicit. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f5ee;
+  --foreground: #10241b;
+  --ink: #10241b;
+  --ink-soft: #3d5448;
+  --paper: #fffdf7;
+  --line: #e3ddcc;
+  --leaf: #0f8a5f;
+  --leaf-deep: #0a5c40;
+  --sun: #f4b43c;
+  --sky: #cfe8f3;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-paper: var(--paper);
+  --color-line: var(--line);
+  --color-leaf: var(--leaf);
+  --color-leaf-deep: var(--leaf-deep);
+  --color-sun: var(--sun);
+  --color-sky: var(--sky);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
 }
 
+::selection {
+  background: #bfe8d2;
+  color: var(--ink);
+}
+
+/* Visible, consistent keyboard focus everywhere. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--sun);
+  outline-offset: 3px;
+  border-radius: 10px;
+}
+
+/* ---------- scroll reveal ---------- */
+.reveal-ready [data-reveal] {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition-delay: var(--d, 0ms);
+}
+.reveal-ready [data-reveal].is-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* ---------- keyframes (game HUD uses float-up; keep it) ---------- */
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-24px); }
@@ -38,15 +82,93 @@ body {
   20% { opacity: 1; transform: translate(-50%, -8px) scale(1.1); }
   100% { transform: translate(-50%, -46px) scale(1); opacity: 0; }
 }
+@keyframes drift {
+  from { transform: translateX(-30%); }
+  to { transform: translateX(130vw); }
+}
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes squish {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  40% { transform: translateY(-14px) scale(0.92, 1.08); }
+  70% { transform: translateY(0) scale(1.1, 0.9); }
+}
+@keyframes sway {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
+}
+@keyframes twinkle {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+@keyframes pulseRing {
+  0% { box-shadow: 0 0 0 0 rgb(15 138 95 / 0.45); }
+  100% { box-shadow: 0 0 0 12px rgb(15 138 95 / 0); }
+}
+@keyframes walk {
+  0% { transform: translateX(0); }
+  50% { transform: translateX(46px); }
+  100% { transform: translateX(0); }
+}
+@keyframes stick {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(7px, -6px); }
+  50% { transform: translate(-6px, -7px); }
+  75% { transform: translate(-7px, 6px); }
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
 .animate-float-up { animation: floatUp 0.85s ease-out forwards; }
 .animate-float { animation: float 6s ease-in-out infinite; }
 .animate-float-slow { animation: float 9s ease-in-out infinite; }
 .animate-marquee { animation: marquee 22s linear infinite; }
+.animate-drift { animation: drift linear infinite; }
+.animate-bob { animation: bob 3.2s ease-in-out infinite; }
+.animate-squish { animation: squish 1.6s ease-in-out infinite; transform-origin: 50% 100%; transform-box: fill-box; }
+.animate-sway { animation: sway 5s ease-in-out infinite; transform-origin: 50% 100%; transform-box: fill-box; }
+.animate-twinkle { animation: twinkle 2.4s ease-in-out infinite; }
+.animate-pulse-ring { animation: pulseRing 1.8s ease-out infinite; }
+.animate-walk { animation: walk 7s ease-in-out infinite; }
+.animate-stick { animation: stick 3.6s ease-in-out infinite; }
+.animate-rise { animation: rise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both; animation-delay: var(--d, 0ms); }
+
+/* ---------- in-game UI motion ---------- */
+@keyframes toastIn {
+  0% { opacity: 0; transform: translate(-50%, -12px) scale(0.92); }
+  100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+@keyframes menuPop {
+  0% { opacity: 0; transform: translateY(16px) scale(0.97); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes joyIdle {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(255 255 255 / 0.35); }
+  50% { box-shadow: 0 0 0 10px rgb(255 255 255 / 0); }
+}
+.toast-in { animation: toastIn 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+.menu-pop { animation: menuPop 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.joy-idle { animation: joyIdle 2.2s ease-in-out infinite; }
+.touch-ui button { -webkit-user-select: none; user-select: none; touch-action: none; }
+
+/* FAQ disclosure: smooth open using grid rows */
+.faq-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.35s ease;
+}
+.faq-item[data-open="true"] .faq-body { grid-template-rows: 1fr; }
+.faq-body > div { overflow: hidden; }
 
 /* Respect kids/parents who ask their device to reduce motion: stop the
    decorative looping animations and keep transitions near-instant. The 3D
-   game itself stays playable — only non-essential motion is calmed. */
+   game itself stays playable, only non-essential motion is calmed. */
 @media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
   *,
   *::before,
   *::after {
@@ -57,7 +179,16 @@ body {
   }
   .animate-float,
   .animate-float-slow,
-  .animate-marquee {
+  .animate-marquee,
+  .animate-drift,
+  .animate-bob,
+  .animate-squish,
+  .animate-sway,
+  .animate-twinkle,
+  .animate-pulse-ring,
+  .animate-walk,
+  .animate-stick {
     animation: none !important;
   }
+  .reveal-ready [data-reveal] { opacity: 1; transform: none; }
 }

@@ -29,8 +29,9 @@ purchases, no rankings to shame a child, and a parent dashboard with a daily pla
 | ✔ | Safety property |
 |---|---|
 | ✔ | No violence, no scary content |
-| ✔ | No ads, no in-game purchases, no loot boxes |
-| ✔ | Single-player — **no chat with strangers** |
+| ✔ | No ads, **no real-money purchases**, no loot boxes — the wardrobe shop uses coins earned by playing |
+| ✔ | Parent-only Solana **devnet** test purchase (devnet SOL has no monetary value; verified on-chain by the server) |
+| ✔ | Play together in private rooms by code — **no text chat**, only positions, outfits and fixed emotes |
 | ✔ | Family board with **no rankings** (no child is shamed) |
 | ✔ | Parent dashboard + **daily play-time limit**, gated by `is_parent` |
 | ✔ | Gentle "time for a break" reminder — reminds, never locks out |
