@@ -6,6 +6,9 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
+import { SMAAPass } from "three/examples/jsm/postprocessing/SMAAPass.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import {
   HEROES,
   SKILLS,
@@ -507,6 +510,12 @@ export default function Game() {
     scene.add(sun, sun.target);
     const hemi = new THREE.HemisphereLight(0xcfeaff, 0x7cc26a, 1.1);
     scene.add(hemi);
+    // image-based lighting: every PBR material picks up soft reflections and
+    // bounce light from a prefiltered environment instead of flat ambient
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = envTex;
+    scene.environmentIntensity = LOW ? 0.15 : 0.35;
 
     const starGeo = new THREE.BufferGeometry();
     const starPos = new Float32Array(500 * 3);
@@ -1117,6 +1126,7 @@ export default function Game() {
     let portalCooldown = 1.5;
     let arenaPops = 0;
     let composerPass: RenderPass | null = null;
+    let aoPass: GTAOPass | null = null;
     const remotes = new Map<string, { av: Avatar; tag: THREE.Sprite; emote: THREE.Sprite | null; emoteUntil: number; lastEmoteAt: number; eqKey: string; walk: number; zone: string }>();
 
     function moveActors(to: THREE.Scene) {
@@ -1125,6 +1135,8 @@ export default function Game() {
       remotes.forEach((r) => to.add(r.av.root));
       critters.setScene(to);
       if (composerPass) composerPass.scene = to;
+      if (aoPass) aoPass.scene = to;
+      to.environment = envTex;
     }
 
     // ---------- quests ----------
@@ -1316,8 +1328,16 @@ export default function Game() {
       composer.setSize(mountEl.clientWidth, mountEl.clientHeight);
       composerPass = new RenderPass(scene, camera);
       composer.addPass(composerPass);
+      if (G.view >= 4) {
+        // ground-truth ambient occlusion: contact shadows under trees, in
+        // doorways, between rocks (Super High and above)
+        aoPass = new GTAOPass(scene, camera, mountEl.clientWidth, mountEl.clientHeight);
+        aoPass.blendIntensity = 0.85;
+        composer.addPass(aoPass);
+      }
       composer.addPass(new UnrealBloomPass(new THREE.Vector2(mountEl.clientWidth, mountEl.clientHeight), 0.38, 0.55, 0.86));
       composer.addPass(new OutputPass());
+      if (G.aa) composer.addPass(new SMAAPass());
     }
 
     // ---------- sparkles + score pops ----------
@@ -2619,6 +2639,7 @@ export default function Game() {
     if (p.storyChapter >= 1) grant("story-1");
     if (p.storyChapter >= 6) grant("story-6");
     if (p.storyChapter >= 12) grant("story-12");
+    if (p.storyChapter >= 24) grant("story-24");
     Object.assign(p, applyUnlocks(p));
     setProg({ ...p });
     save();
