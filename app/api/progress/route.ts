@@ -21,9 +21,13 @@ export async function PUT(req: Request) {
   } catch {
     return Response.json({ error: "Permintaan tidak valid" }, { status: 400 });
   }
-  const clean = sanitizeProgress(body);
   await ensureSchema();
   const q = sql();
+  // Devnet-bought items are granted only by /api/shop/devnet after an on-chain
+  // check, so the stored list always wins over whatever the client sends.
+  const prev = await q`SELECT data FROM progress WHERE user_id = ${s.userId}`;
+  const owned = sanitizeProgress(prev[0]?.data).devnet;
+  const clean = sanitizeProgress({ ...(body as object), devnet: owned });
   await q`
     INSERT INTO progress (user_id, data, updated_at)
     VALUES (${s.userId}, ${JSON.stringify(clean)}::jsonb, now())

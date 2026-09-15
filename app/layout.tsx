@@ -13,14 +13,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Meadowfar — an open world for kids, right in the browser",
+  title: "Meadowfar | A free 3D open world for kids, in the browser",
   description:
-    "An endless meadow with quests that never run out. Safe for kids, no downloads, no ads. Padang rumput tanpa tepi, aman untuk anak.",
+    "An endless 3D meadow for kids: explore six biomes, play with up to 12 friends in a private room, and dress up with coins earned by playing. No downloads, no ads, no real-money purchases, no loot boxes.",
   applicationName: "Meadowfar",
   appleWebApp: { capable: true, title: "Meadowfar", statusBarStyle: "default" },
   openGraph: {
-    title: "Meadowfar — an open world for kids",
-    description: "An endless meadow with quests that never run out. Safe, free, no downloads.",
+    title: "Meadowfar | A free 3D open world for kids",
+    description: "Explore, build a tree house and play with friends. Safe, free, no downloads, no ads.",
     type: "website",
   },
 };

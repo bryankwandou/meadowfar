@@ -1,18 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { detectLang, saveLang, type Lang } from "@/lib/i18n";
+import { useLang } from "@/components/landing/useLang";
+import AuthShell, { inputClass, primaryBtn } from "@/components/landing/AuthShell";
 
 const T = {
   title: { id: "Buat akun penjelajah", en: "Create an explorer account" },
   sub: {
     id: "Progres, level, dan tokoh yang terbuka akan tersimpan di akun ini.",
-    en: "Progress, levels, and unlocked characters are saved to this account.",
+    en: "Progress, levels and unlocked characters are saved to this account.",
   },
   username: { id: "Nama pengguna", en: "Username" },
-  usernamePh: { id: "contoh: kakaBintang", en: "example: starKid" },
+  usernamePh: { id: "contoh: kakaBintang", en: "for example: starKid" },
+  usernameHint: {
+    id: "Jangan pakai nama asli lengkap, alamat, atau nomor telepon.",
+    en: "Avoid full real names, addresses or phone numbers.",
+  },
   email: { id: "Email", en: "Email" },
   password: { id: "Kata sandi", en: "Password" },
   passwordPh: { id: "Minimal 8 karakter", en: "At least 8 characters" },
@@ -25,15 +30,19 @@ const T = {
   submitting: { id: "Membuat akun...", en: "Creating account..." },
   haveAccount: { id: "Sudah punya akun?", en: "Already have an account?" },
   loginHere: { id: "Masuk di sini", en: "Log in here" },
-  google: { id: "Masuk dengan Google — segera hadir", en: "Sign in with Google — coming soon" },
+  google: { id: "Masuk dengan Google (segera hadir)", en: "Sign in with Google (coming soon)" },
   connErr: { id: "Tidak bisa terhubung ke server", en: "Could not reach the server" },
   genericErr: { id: "Terjadi kendala, coba lagi", en: "Something went wrong, try again" },
+  asideTitle: { id: "Satu akun, semua petualangan tersimpan.", en: "One account, every adventure kept safe." },
+  a1: { id: "Progres ikut ke perangkat mana pun", en: "Progress follows you to any device" },
+  a2: { id: "Papan keluarga tanpa peringkat", en: "A family board with no rankings" },
+  a3: { id: "Dasbor orang tua dengan batas waktu main", en: "A parent dashboard with play-time limits" },
+  a4: { id: "Tanpa iklan dan tanpa pembelian uang sungguhan", en: "No ads and no real-money purchases" },
 };
 
 export default function DaftarPage() {
   const router = useRouter();
-  const [lang, setLang] = useState<Lang>("en");
-  useEffect(() => setLang(detectLang()), []);
+  const [lang, setLang] = useLang();
   const t = (k: keyof typeof T) => T[k][lang];
 
   const [form, setForm] = useState({
@@ -70,123 +79,122 @@ export default function DaftarPage() {
     }
   }
 
-  const input =
-    "w-full rounded-xl border border-emerald-200 bg-white px-4 py-3 text-emerald-950 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200";
+  const label = "block text-sm font-medium text-ink";
+  const check = "mt-0.5 h-5 w-5 shrink-0 rounded accent-[#0f8a5f]";
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-sky-100 to-emerald-100 px-4 py-10">
-      <div className="w-full max-w-md rounded-3xl border border-emerald-200 bg-white/90 p-8 shadow-xl backdrop-blur">
-        <div className="flex items-start justify-between">
-          <h1 className="text-2xl font-bold text-emerald-950">{t("title")}</h1>
-          <button
-            onClick={() => {
-              const next: Lang = lang === "id" ? "en" : "id";
-              setLang(next);
-              saveLang(next);
-            }}
-            className="rounded-lg border border-emerald-300 px-3 py-1 text-xs font-semibold text-emerald-700"
-          >
-            {lang === "id" ? "EN" : "ID"}
-          </button>
-        </div>
-        <p className="mt-1 text-sm text-emerald-700">{t("sub")}</p>
-        <form onSubmit={submit} className="mt-6 flex flex-col gap-4">
-          <label className="text-sm font-medium text-emerald-900">
-            {t("username")}
-            <input
-              className={input}
-              value={form.username}
-              onChange={(e) => setForm({ ...form, username: e.target.value })}
-              placeholder={t("usernamePh")}
-              required
-            />
-          </label>
-          <label className="text-sm font-medium text-emerald-900">
-            {t("email")}
-            <input
-              className={input}
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              placeholder="name@example.com"
-              required
-            />
-          </label>
-          <label className="text-sm font-medium text-emerald-900">
+    <AuthShell
+      lang={lang}
+      setLang={setLang}
+      asideTitle={t("asideTitle")}
+      asidePoints={[t("a1"), t("a2"), t("a3"), t("a4")]}
+    >
+      <h1 className="text-3xl font-semibold tracking-tight">{t("title")}</h1>
+      <p className="mt-2 text-ink-soft">{t("sub")}</p>
+      <form onSubmit={submit} className="mt-8 flex flex-col gap-5">
+        <label className={label}>
+          {t("username")}
+          <input
+            className={inputClass}
+            value={form.username}
+            onChange={(e) => setForm({ ...form, username: e.target.value })}
+            placeholder={t("usernamePh")}
+            autoComplete="username"
+            aria-describedby="username-hint"
+            required
+          />
+          <span id="username-hint" className="mt-1.5 block text-xs font-normal text-ink-soft">
+            {t("usernameHint")}
+          </span>
+        </label>
+        <label className={label}>
+          {t("email")}
+          <input
+            className={inputClass}
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            placeholder="name@example.com"
+            autoComplete="email"
+            required
+          />
+        </label>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <label className={label}>
             {t("password")}
             <input
-              className={input}
+              className={inputClass}
               type="password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               placeholder={t("passwordPh")}
+              autoComplete="new-password"
               required
             />
           </label>
-          <label className="text-sm font-medium text-emerald-900">
+          <label className={label}>
             {t("confirm")}
             <input
-              className={input}
+              className={inputClass}
               type="password"
               value={form.confirm}
               onChange={(e) => setForm({ ...form, confirm: e.target.value })}
               placeholder={t("confirmPh")}
+              autoComplete="new-password"
               required
             />
           </label>
-          <label className="flex items-start gap-3 text-sm text-emerald-800">
+        </div>
+        <div className="space-y-3 rounded-2xl border border-line bg-paper p-4">
+          <label className="flex items-start gap-3 text-sm text-ink">
             <input
               type="checkbox"
-              className="mt-1 h-4 w-4 accent-emerald-600"
+              className={check}
               checked={form.agreeTerms}
               onChange={(e) => setForm({ ...form, agreeTerms: e.target.checked })}
             />
             <span>
               {t("agreeTerms")}{" "}
-              <Link href="/syarat" className="font-semibold underline" target="_blank">
+              <Link href="/syarat" className="font-semibold text-leaf underline underline-offset-2" target="_blank">
                 {t("terms")}
               </Link>
             </span>
           </label>
-          <label className="flex items-start gap-3 text-sm text-emerald-800">
+          <label className="flex items-start gap-3 text-sm text-ink">
             <input
               type="checkbox"
-              className="mt-1 h-4 w-4 accent-emerald-600"
+              className={check}
               checked={form.agreePrivacy}
               onChange={(e) => setForm({ ...form, agreePrivacy: e.target.checked })}
             />
             <span>
               {t("agreeTerms")}{" "}
-              <Link href="/privasi" className="font-semibold underline" target="_blank">
+              <Link href="/privasi" className="font-semibold text-leaf underline underline-offset-2" target="_blank">
                 {t("privacy")}
               </Link>
             </span>
           </label>
-          {error && (
-            <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
-          )}
-          <button
-            disabled={busy || !form.agreeTerms || !form.agreePrivacy}
-            className="rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {busy ? t("submitting") : t("submit")}
-          </button>
-        </form>
-        <div className="mt-6 flex flex-col gap-2 text-center text-sm text-emerald-700">
-          <p>
-            {t("haveAccount")}{" "}
-            <Link href="/masuk" className="font-semibold underline">
-              {t("loginHere")}
-            </Link>
-          </p>
-          <button
-            disabled
-            className="cursor-not-allowed rounded-xl border border-emerald-200 px-4 py-2 text-emerald-400"
-          >
-            {t("google")}
-          </button>
         </div>
+        {error && (
+          <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            {error}
+          </p>
+        )}
+        <button disabled={busy || !form.agreeTerms || !form.agreePrivacy} className={primaryBtn}>
+          {busy ? t("submitting") : t("submit")}
+        </button>
+      </form>
+      <div className="mt-6 flex flex-col gap-3 text-center text-sm text-ink-soft">
+        <p>
+          {t("haveAccount")}{" "}
+          <Link href="/masuk" className="font-semibold text-leaf underline underline-offset-2">
+            {t("loginHere")}
+          </Link>
+        </p>
+        <button disabled className="cursor-not-allowed rounded-xl border border-line px-4 py-2.5 text-ink-soft/70">
+          {t("google")}
+        </button>
       </div>
-    </main>
+    </AuthShell>
   );
 }

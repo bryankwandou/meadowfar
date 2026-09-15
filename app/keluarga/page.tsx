@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { detectLang, saveLang, pick, UI, type Lang } from "@/lib/i18n";
+import { pick, UI } from "@/lib/i18n";
 import { HEROES } from "@/lib/progression";
+import { useLang } from "@/components/landing/useLang";
+import { SiteFooter, SiteNav } from "@/components/landing/SiteChrome";
 
 interface Explorer {
   username: string;
@@ -14,13 +16,20 @@ interface Explorer {
   me: boolean;
 }
 
+const T = {
+  kicker: { id: "Keluarga", en: "Family" },
+  needLogin: { id: "Masuk dulu untuk melihat papan keluarga.", en: "Log in first to see the family board." },
+  loading: { id: "Memuat penjelajah...", en: "Loading explorers..." },
+  chapter: { id: "Bab", en: "Chapter" },
+};
+
 export default function KeluargaPage() {
-  const [lang, setLang] = useState<Lang>("en");
+  const [lang, setLang] = useLang();
   const [rows, setRows] = useState<Explorer[] | null>(null);
   const [needLogin, setNeedLogin] = useState(false);
+  const t = (k: keyof typeof T) => T[k][lang];
 
   useEffect(() => {
-    setLang(detectLang());
     fetch("/api/leaderboard")
       .then((r) => {
         if (r.status === 401) {
@@ -35,82 +44,85 @@ export default function KeluargaPage() {
 
   const heroName = (id: string | null) => {
     const h = HEROES.find((x) => x.id === id);
-    return h ? (lang === "id" ? h.nama : h.namaEn) : "—";
+    return h ? (lang === "id" ? h.nama : h.namaEn) : "-";
   };
 
   return (
-    <main className="mx-auto min-h-screen max-w-2xl bg-gradient-to-b from-sky-100 to-emerald-100 px-6 py-12 text-emerald-950">
-      <div className="flex items-start justify-between">
-        <h1 className="text-3xl font-bold">{pick(lang, UI.leaderboard.id, UI.leaderboard.en)}</h1>
-        <button
-          onClick={() => {
-            const next: Lang = lang === "id" ? "en" : "id";
-            setLang(next);
-            saveLang(next);
-          }}
-          className="rounded-lg border border-emerald-300 px-3 py-1 text-xs font-semibold text-emerald-700"
-        >
-          {lang === "id" ? "EN" : "ID"}
-        </button>
-      </div>
-      <p className="mt-2 text-sm text-emerald-700">
-        {pick(lang, UI.leaderboardSub.id, UI.leaderboardSub.en)}
-      </p>
+    <div className="flex min-h-screen flex-col bg-background text-ink">
+      <SiteNav lang={lang} setLang={setLang} sections={false} />
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12 sm:px-6 sm:py-16">
+        <p className="animate-rise text-xs font-semibold uppercase tracking-[0.16em] text-leaf">{t("kicker")}</p>
+        <h1 className="animate-rise mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+          {pick(lang, UI.leaderboard.id, UI.leaderboard.en)}
+        </h1>
+        <p className="animate-rise mt-3 max-w-xl text-ink-soft">{pick(lang, UI.leaderboardSub.id, UI.leaderboardSub.en)}</p>
 
-      {needLogin ? (
-        <div className="mt-10 rounded-2xl bg-white/80 p-6 text-center">
-          <p>{pick(lang, "Masuk dulu untuk melihat papan keluarga.", "Log in first to see the family board.")}</p>
-          <Link href="/masuk" className="mt-3 inline-block font-semibold text-emerald-700 underline">
-            {pick(lang, UI.login.id, UI.login.en)}
-          </Link>
-        </div>
-      ) : !rows ? (
-        <p className="mt-10 text-center text-emerald-600">…</p>
-      ) : rows.length === 0 ? (
-        <p className="mt-10 text-center text-emerald-600">
-          {pick(lang, UI.leaderboardEmpty.id, UI.leaderboardEmpty.en)}
-        </p>
-      ) : (
-        <div className="mt-8 overflow-hidden rounded-2xl bg-white/80 shadow">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-emerald-600 text-white">
-              <tr>
-                <th className="px-4 py-3">{pick(lang, UI.colExplorer.id, UI.colExplorer.en)}</th>
-                <th className="px-4 py-3">{pick(lang, UI.colLevel.id, UI.colLevel.en)}</th>
-                <th className="px-4 py-3">{pick(lang, UI.colStory.id, UI.colStory.en)}</th>
-                <th className="px-4 py-3">{pick(lang, UI.colItems.id, UI.colItems.en)}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr
-                  key={r.username}
-                  className={r.me ? "bg-amber-100 font-semibold" : "odd:bg-emerald-50/50"}
-                >
-                  <td className="px-4 py-3">
+        {needLogin ? (
+          <div className="animate-rise mt-10 rounded-3xl border border-line bg-paper p-8 text-center">
+            <p className="text-ink">{t("needLogin")}</p>
+            <Link href="/masuk" className="mt-5 inline-block rounded-full bg-leaf px-6 py-2.5 font-semibold text-white transition hover:bg-leaf-deep">
+              {pick(lang, UI.login.id, UI.login.en)}
+            </Link>
+          </div>
+        ) : !rows ? (
+          <div className="mt-10 space-y-3" aria-busy="true" aria-label={t("loading")}>
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-20 animate-pulse rounded-2xl bg-line/60" />
+            ))}
+          </div>
+        ) : rows.length === 0 ? (
+          <p className="mt-10 rounded-3xl border border-dashed border-line p-10 text-center text-ink-soft">
+            {pick(lang, UI.leaderboardEmpty.id, UI.leaderboardEmpty.en)}
+          </p>
+        ) : (
+          <ul className="mt-10 space-y-3">
+            {rows.map((r, i) => (
+              <li
+                key={r.username}
+                className={`animate-rise flex flex-wrap items-center gap-4 rounded-2xl border p-4 sm:p-5 ${
+                  r.me ? "border-sun bg-[#fff6e0]" : "border-line bg-paper"
+                }`}
+                style={{ "--d": `${i * 60}ms` } as React.CSSProperties}
+              >
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-leaf/10 text-lg font-semibold text-leaf">
+                  {r.username.charAt(0).toUpperCase()}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold">
                     {r.username}
                     {r.me && (
-                      <span className="ml-1 text-xs text-amber-700">
-                        ({pick(lang, UI.you.id, UI.you.en)})
+                      <span className="ml-2 rounded-full bg-sun px-2 py-0.5 text-xs font-semibold text-ink">
+                        {pick(lang, UI.you.id, UI.you.en)}
                       </span>
                     )}
-                    <span className="block text-xs font-normal text-emerald-600">
-                      {heroName(r.hero)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">{r.level}</td>
-                  <td className="px-4 py-3">{r.story}/12</td>
-                  <td className="px-4 py-3">{r.items}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                  </p>
+                  <p className="text-sm text-ink-soft">{heroName(r.hero)}</p>
+                </div>
+                <dl className="flex gap-2 text-center">
+                  {[
+                    [pick(lang, UI.colLevel.id, UI.colLevel.en), r.level],
+                    [pick(lang, UI.colStory.id, UI.colStory.en), `${r.story}/12`],
+                    [pick(lang, UI.colItems.id, UI.colItems.en), r.items],
+                  ].map(([k, v]) => (
+                    <div key={String(k)} className="min-w-16 rounded-xl bg-background px-3 py-1.5">
+                      <dt className="text-[11px] uppercase tracking-wide text-ink-soft">{k}</dt>
+                      <dd className="font-semibold tabular-nums">{v}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </li>
+            ))}
+          </ul>
+        )}
 
-      <Link href="/play" className="mt-8 inline-block font-semibold text-emerald-700 underline">
-        {pick(lang, UI.backToGame.id, UI.backToGame.en)}
-      </Link>
-    </main>
+        <Link
+          href="/play"
+          className="mt-10 inline-flex items-center gap-2 rounded-full border border-line bg-paper px-5 py-2.5 text-sm font-semibold transition hover:border-ink/30"
+        >
+          <span aria-hidden="true">&larr;</span> {pick(lang, UI.backToGame.id, UI.backToGame.en)}
+        </Link>
+      </main>
+      <SiteFooter lang={lang} />
+    </div>
   );
 }
