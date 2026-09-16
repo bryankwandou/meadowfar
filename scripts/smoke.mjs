@@ -29,6 +29,11 @@ const s = await page.evaluate(() => {
   return rest;
 });
 await page.screenshot({ path: "docs/qa/20-render-superhigh.png" });
+// tilt the camera up to check the sky and cloud layer
+await page.evaluate(() => window.__meadowfar().setPitch(-0.95));
+await new Promise((r) => setTimeout(r, 2500));
+await page.screenshot({ path: "docs/qa/23-sky.png" });
+await page.evaluate(() => window.__meadowfar().setPitch(0.32));
 // look for a procedural dungeon and walk the camera to it
 const d = await page.evaluate(() => {
   for (let r = 1; r < 12; r++)
