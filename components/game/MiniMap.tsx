@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { biomeAt, terrainHeight, WATER_Y } from "@/lib/game/terrain";
-import { HOME, SITES, VILLAGE0, villageName, villagesIn } from "@/lib/game/world";
+import { HOME, SITES, VILLAGE0, dungeonName, dungeonsIn, villageName, villagesIn } from "@/lib/game/world";
 import { pick, type Lang } from "@/lib/i18n";
 
 export interface MapState {
@@ -90,6 +90,10 @@ function drawMarkers(ctx: CanvasRenderingContext2D, W: number, s: MapState, cx: 
   for (const v of villagesIn(cx - range, cz - range, cx + range, cz + range)) {
     dot(v.x, v.z, 4 * unit, "#e0833a");
     plain(villageName(v.x, v.z), v.x, v.z, -12);
+  }
+  for (const d of dungeonsIn(cx - range, cz - range, cx + range, cz + range)) {
+    dot(d.x, d.z, 4.2 * unit, d.kind === "cave" ? "#4fb9e6" : d.kind === "hall" ? "#8a6ad0" : "#d0514a", "#10241b");
+    plain(dungeonName(d, lang), d.x, d.z, -12);
   }
   dot(VILLAGE0.x, VILLAGE0.z, 4 * unit, "#e0833a");
   text(pick(lang, "Desa Padang", "Meadow Village"), VILLAGE0.x, VILLAGE0.z, -9 * unit);

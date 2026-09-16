@@ -113,9 +113,10 @@ export function buildAvatar(hero: HeroDef, equip: Equip = DEFAULT_EQUIP): Avatar
   const scR = mesh(scleraGeo, scleraM, 0.15, 0.02, 0.33);
   scL.scale.set(1, 0.85, 0.6);
   scR.scale.set(1, 0.85, 0.6);
-  const browGeo = new THREE.CapsuleGeometry(0.02, 0.12, 2, 6);
-  const browL = mesh(browGeo, hair, -0.15, 0.15, 0.37);
-  const browR = mesh(browGeo, hair, 0.15, 0.15, 0.37);
+  // brows sit clear of the eyes so they never merge into one dark band
+  const browGeo = new THREE.CapsuleGeometry(0.016, 0.1, 2, 6);
+  const browL = mesh(browGeo, hair, -0.15, 0.21, 0.36);
+  const browR = mesh(browGeo, hair, 0.15, 0.21, 0.36);
   browL.rotation.z = Math.PI / 2 - 0.12;
   browR.rotation.z = Math.PI / 2 + 0.12;
   const nose = mesh(new THREE.SphereGeometry(0.055, 10, 8), mat(shade(hero.skin, 0.93), false, 0.7), 0, -0.04, 0.41);
@@ -461,7 +462,17 @@ export function buildAvatar(hero: HeroDef, equip: Equip = DEFAULT_EQUIP): Avatar
   }
   setEquip(equip);
 
+  const blinkSeed = Math.random() * 3000;
   function tick(now: number, speed: number) {
+    // blink every few seconds, breathe, and let the head drift a little
+    const bt = (now + blinkSeed) % 3600;
+    const lid = bt < 130 ? 0.12 : 1;
+    eyeL.scale.y = eyeR.scale.y = lid;
+    scL.scale.y = scR.scale.y = 0.85 * lid;
+    const breath = Math.sin(now / 900) * (1 - Math.min(1, speed)) ;
+    torso.scale.set(1 + breath * 0.012, 1 + breath * 0.018, 0.72 + breath * 0.012);
+    head.rotation.y = Math.sin(now / 2300 + blinkSeed) * 0.12 * (1 - Math.min(1, speed));
+    head.rotation.x = Math.sin(now / 3100) * 0.04;
     capePivot.rotation.x = 0.12 + speed * 0.55 + Math.sin(now / 260) * (0.05 + speed * 0.08);
     wings.forEach((w) => {
       const s = w.userData.side as number;
