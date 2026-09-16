@@ -88,10 +88,15 @@ export function buildAvatar(hero: HeroDef, equip: Equip = DEFAULT_EQUIP): Avatar
     hair, 0, 0.04, -0.02
   );
   const eyeGeo = new THREE.SphereGeometry(0.06, 10, 8);
-  const eyeM = mat(0x1d1d2b, false, 0.3);
+  // brown iris with a dark pupil, like a real eye rather than a black bead
+  const eyeM = mat(0x5a3a22, false, 0.3);
+  const pupilGeo = new THREE.SphereGeometry(0.032, 8, 6);
+  const pupilM = mat(0x0c0c12, false, 0.2);
   const shineM = new THREE.MeshBasicMaterial({ color: 0xffffff });
   const eyeL = mesh(eyeGeo, eyeM, -0.15, 0.02, 0.37);
   const eyeR = mesh(eyeGeo, eyeM, 0.15, 0.02, 0.37);
+  eyeL.add(new THREE.Mesh(pupilGeo, pupilM).translateZ(0.038));
+  eyeR.add(new THREE.Mesh(pupilGeo, pupilM).translateZ(0.038));
   const shineGeo = new THREE.SphereGeometry(0.02, 6, 6);
   eyeL.add(new THREE.Mesh(shineGeo, shineM).translateX(0.02).translateY(0.025).translateZ(0.045));
   eyeR.add(new THREE.Mesh(shineGeo, shineM).translateX(0.02).translateY(0.025).translateZ(0.045));
