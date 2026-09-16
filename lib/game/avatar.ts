@@ -156,7 +156,17 @@ export function buildAvatar(hero: HeroDef, equip: Equip = DEFAULT_EQUIP): Avatar
   const limb = (x: number, y: number, len: number, r: number, m: THREE.Material) => {
     const pivot = new THREE.Group();
     pivot.position.set(x, y, 0);
-    const seg = mesh(new THREE.CapsuleGeometry(r, len, 4, 10), m, 0, -len / 2 - r * 0.4, 0);
+    // tapered profile: full at the shoulder/thigh, slimmer at wrist/ankle,
+    // with a slight bulge where the muscle sits, instead of a straight tube
+    const pts: THREE.Vector2[] = [];
+    const total = len + r * 2;
+    for (let i = 0; i <= 14; i++) {
+      const t = i / 14;
+      const cap = Math.sin(Math.min(t, 1 - t, 0.12) / 0.12 * Math.PI / 2);
+      const taper = 1.08 - 0.3 * t + 0.08 * Math.sin(t * Math.PI * 1.6);
+      pts.push(new THREE.Vector2(Math.max(0.001, r * taper * cap), total / 2 - t * total));
+    }
+    const seg = mesh(new THREE.LatheGeometry(pts, 12), m, 0, -len / 2 - r * 0.4, 0);
     pivot.add(seg);
     pivot.userData.seg = seg;
     body.add(pivot);
@@ -164,6 +174,13 @@ export function buildAvatar(hero: HeroDef, equip: Equip = DEFAULT_EQUIP): Avatar
   };
   const armL = limb(-0.58, 1.95, 0.62, 0.13, mat(hero.cloth));
   const armR = limb(0.58, 1.95, 0.62, 0.13, mat(hero.cloth));
+  // rounded shoulders so the arms grow out of the torso
+  const shoulderGeo = new THREE.SphereGeometry(0.17, 12, 10);
+  const shL = mesh(shoulderGeo, mat(hero.cloth), -0.5, 1.9, 0);
+  const shR = mesh(shoulderGeo, mat(hero.cloth), 0.5, 1.9, 0);
+  shL.scale.set(1, 0.85, 0.9);
+  shR.scale.set(1, 0.85, 0.9);
+  body.add(shL, shR);
   // hands: palm, four fingers and a thumb instead of a ball
   const palmGeo = new THREE.BoxGeometry(0.2, 0.2, 0.1);
   const fingerGeo = new THREE.CapsuleGeometry(0.028, 0.09, 2, 6);
@@ -451,6 +468,7 @@ export function buildAvatar(hero: HeroDef, equip: Equip = DEFAULT_EQUIP): Avatar
     skirt.material = mat(top, glow);
     (armL.userData.seg as THREE.Mesh).material = mat(top, glow);
     (armR.userData.seg as THREE.Mesh).material = mat(top, glow);
+    shL.material = shR.material = mat(top, glow);
     (legL.userData.seg as THREE.Mesh).material = mat(bottom);
     (legR.userData.seg as THREE.Mesh).material = mat(bottom);
     belt.material = mat(outfit && e.outfit !== "outfit-hero" ? (outfit.accent ?? 0x5a4636) : 0x5a4636);
