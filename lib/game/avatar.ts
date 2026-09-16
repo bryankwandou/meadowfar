@@ -141,6 +141,21 @@ export function buildAvatar(hero: HeroDef, equip: Equip = DEFAULT_EQUIP): Avatar
     lock.rotation.set(0.5, 0, -a * 0.6);
     head.add(lock);
   }
+  // layered strands around the sides and back, two tiers with slightly
+  // different tones, so the hair has volume and texture instead of one shell
+  const strandGeo = new THREE.ConeGeometry(0.075, 0.3, 6);
+  const hairHi = mat(shade(hero.hair, 1.25), false, 0.75);
+  // only bare-headed heroes; helmets and hats would be pierced by the strands
+  for (let tier = 0; tier < (hero.id === "girl" || hero.id === "boy" ? 2 : 0); tier++) {
+    const n = 14 - tier * 2;
+    for (let i = 0; i < n; i++) {
+      const a = Math.PI * 0.32 + (i / (n - 1)) * Math.PI * 1.36;
+      const rr = 0.42 - tier * 0.02;
+      const st = mesh(strandGeo, (i + tier) % 3 === 0 ? hairHi : hair, Math.sin(a) * rr, 0.12 - tier * 0.13, Math.cos(a) * rr - 0.02);
+      st.rotation.set(Math.PI + Math.cos(a) * 0.35, 0, -Math.sin(a) * 0.35);
+      head.add(st);
+    }
+  }
   head.add(scL, scR, browL, browR, nose, earL, earR, jaw);
   const neck = mesh(new THREE.CylinderGeometry(0.14, 0.17, 0.3, 12), skin, 0, 2.08, 0);
   body.add(neck);
