@@ -15,7 +15,7 @@ const check = (name, pass, note = "") => {
 };
 
 const browser = await chromium.launch({
-  args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+  args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--disable-features=WebRtcHideLocalIpsWithMdns"],
 });
 async function open(ctx, hero) {
   const p = await ctx.newPage();
@@ -59,6 +59,7 @@ for (let i = 0; i < 120 && !joined; i++) {
   await sleep(1000);
   joined = (await B.getByTestId("room-count").innerText().catch(() => "")).startsWith("2");
 }
+if (!joined) console.log("guest panel:", (await B.getByTestId("room-count").innerText().catch(() => "")), (await B.locator("body").innerText()).slice(0, 600).replace(/s+/g, " "));
 check("two players join the same room", joined, `code=${code}`);
 
 await A.getByTestId("menu-close").click();
