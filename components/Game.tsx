@@ -31,7 +31,7 @@ import {
 import { STORY } from "@/lib/story";
 import { UI, QUEST_NOUN_NAMES, detectLang, saveLang, pick, type Lang } from "@/lib/i18n";
 import { COSMETICS, ITEMS, MAX_HEARTS, RECIPES, canCraft, type Slot } from "@/lib/catalog";
-import { hash2, terrainHeight, biomeAt, forestAt, addPad, removePad, mulberry32, WATER_Y, type Biome } from "@/lib/game/terrain";
+import { hash2, terrainHeight, biomeAt, forestAt, fbm, addPad, removePad, mulberry32, WATER_Y, type Biome } from "@/lib/game/terrain";
 import { CHUNK, HOME, REGION, SITES, VILLAGE0, dungeonName, dungeonPos, nearLandmark, villagePos, villageName } from "@/lib/game/world";
 import { buildAnimal, herdFor, wander, animateAnimal, SPECIES, type Animal } from "@/lib/game/wildlife";
 import MiniMap, { type MapState } from "./game/MiniMap";
@@ -509,6 +509,43 @@ export default function Game() {
       scene.add(sky);
       skyDome.visible = false;
     }
+    // Drifting cloud sheet: layered value noise on a big plane above the
+    // world. Cheap (one draw call) but it stops the sky reading as flat blue.
+    let cloudLayer: THREE.Mesh | null = null;
+    const cloudUniforms = { uTime: { value: 0 }, uSun: { value: 1 } };
+    if (!LOW) {
+      const cg = new THREE.PlaneGeometry(2400, 2400, 1, 1);
+      cg.rotateX(-Math.PI / 2);
+      const cm = new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        fog: false,
+        side: THREE.DoubleSide,
+        uniforms: cloudUniforms,
+        vertexShader: `varying vec2 vUv;
+          void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+        fragmentShader: `varying vec2 vUv;
+          uniform float uTime; uniform float uSun;
+          float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+          float n(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
+            return mix(mix(h(i), h(i+vec2(1,0)), f.x), mix(h(i+vec2(0,1)), h(i+vec2(1,1)), f.x), f.y); }
+          float fbm(vec2 p){ float v = 0.0, a = 0.5;
+            for (int i = 0; i < 5; i++){ v += n(p) * a; p = p * 2.07 + 13.1; a *= 0.5; } return v; }
+          void main(){
+            vec2 p = vUv * 3.2 + vec2(uTime * 0.004, uTime * 0.0017);
+            float f = fbm(p) * 0.65 + fbm(p * 2.6 + 4.0) * 0.35;
+            float cover = smoothstep(0.50, 0.72, f);
+            float edge = smoothstep(0.46, 0.86, f);
+            vec3 lit = mix(vec3(0.78, 0.82, 0.88), vec3(1.0, 0.99, 0.96), edge);
+            gl_FragColor = vec4(lit * uSun, cover * 0.75);
+          }`,
+      });
+      cloudLayer = new THREE.Mesh(cg, cm);
+      cloudLayer.position.y = 300;
+      cloudLayer.frustumCulled = false;
+      cloudLayer.renderOrder = -9;
+      scene.add(cloudLayer);
+    }
     const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(22, 20, 14), new THREE.MeshBasicMaterial({ color: 0xfff1c4, fog: false }));
     scene.add(sunDisc);
     const moon = new THREE.Mesh(new THREE.SphereGeometry(14, 20, 14), new THREE.MeshBasicMaterial({ color: 0xf3f0dc, fog: false }));
@@ -834,6 +871,29 @@ float gNoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
       return mergeGeometries(parts) ?? new THREE.PlaneGeometry(0.17, 0.85);
     })();
     const grassMat = new THREE.MeshStandardMaterial({ color: 0x5aad4a, side: THREE.DoubleSide, roughness: 0.9 });
+    // meadow flowers: a slim stem with a ring of petals and a bright centre
+    const flowerGeo = (() => {
+      const parts: THREE.BufferGeometry[] = [];
+      const stem = new THREE.CylinderGeometry(0.011, 0.016, 0.24, 4);
+      stem.translate(0, 0.12, 0);
+      parts.push(stem);
+      for (let i = 0; i < 5; i++) {
+        const petal = new THREE.SphereGeometry(0.05, 6, 4);
+        petal.scale(1.7, 0.2, 0.52); // long, thin petal
+        const a = (i / 5) * Math.PI * 2;
+        petal.translate(0.085, 0, 0);
+        petal.rotateY(-a);
+        petal.translate(0, 0.25, 0);
+        parts.push(petal);
+      }
+      const eye = new THREE.SphereGeometry(0.032, 7, 5);
+      eye.scale(1, 0.6, 1);
+      eye.translate(0, 0.262, 0);
+      parts.push(eye);
+      return mergeGeometries(parts) ?? new THREE.SphereGeometry(0.06, 5, 4);
+    })();
+    const flowerMat = new THREE.MeshStandardMaterial({ roughness: 0.75, vertexColors: false });
+    const FLOWERS = Math.round(130 * G.grass);
     grassMat.onBeforeCompile = (sh) => {
       sh.uniforms.uTime = uTime;
       sh.vertexShader =
@@ -969,7 +1029,7 @@ float gNoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
           if (by < WATER_Y + 0.35) continue;
           pv.set(bx, by, bz);
           q.setFromAxisAngle(up, hash2(bz, bx) * Math.PI * 2);
-          const s = 0.75 + hash2(bx, bz) * 0.8;
+          const s = 0.42 + hash2(bx, bz) * 0.45;
           sc.set(0.85 + hash2(bz * 3, bx) * 0.5, s, 0.85 + hash2(bx * 3, bz) * 0.5);
           mtx.compose(pv, q, sc);
           // shade each tuft a little differently: sunlit tips, shaded hollows
@@ -984,6 +1044,36 @@ float gNoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
         if (blades.instanceColor) blades.instanceColor.needsUpdate = true;
         blades.computeBoundingSphere();
         g.add(blades);
+
+        // flowers bloom in patches, thickest in open meadow
+        if (FLOWERS) {
+          const fl = new THREE.InstancedMesh(flowerGeo, flowerMat, FLOWERS);
+          fl.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(FLOWERS * 3), 3);
+          const petal = new THREE.Color();
+          const palette = [0xf2f2f4, 0xffd766, 0xef7fae, 0x9f7fe0, 0xff8f5e, 0x7fd2f0];
+          let fp = 0;
+          for (let i = 0; i < FLOWERS; i++) {
+            const fx = cx * CHUNK + (hash2(cx * 19 + i * 7, cz * 23 + i) - 0.5) * CHUNK;
+            const fz = cz * CHUNK + (hash2(cx * 41 + i, cz * 17 + i * 3) - 0.5) * CHUNK;
+            const fy = terrainHeight(fx, fz);
+            if (fy < WATER_Y + 0.4) continue;
+            if (fbm(fx * 0.05, fz * 0.05, 2, 77) < 0.08) continue; // clump, don't sprinkle
+            pv.set(fx, fy, fz);
+            q.setFromAxisAngle(up, hash2(fz, fx) * Math.PI * 2);
+            const fs = 0.95 + hash2(fx, fz) * 0.6;
+            sc.set(fs, fs * (0.85 + hash2(fz, fx) * 0.4), fs);
+            mtx.compose(pv, q, sc);
+            petal.setHex(palette[Math.floor(hash2(fx * 0.3, fz * 0.3) * palette.length)]);
+            fl.setColorAt(fp, petal);
+            fl.setMatrixAt(fp++, mtx);
+          }
+          fl.count = fp;
+          fl.instanceMatrix.needsUpdate = true;
+          if (fl.instanceColor) fl.instanceColor.needsUpdate = true;
+          fl.computeBoundingSphere();
+          fl.castShadow = false;
+          g.add(fl);
+        }
       }
 
       // wildlife herd for this chunk
@@ -1927,6 +2017,12 @@ float gNoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
           sky.visible = daySky;
           skyDome.visible = !daySky;
           if (bloomPass) bloomPass.enabled = !daySky;
+          if (cloudLayer) {
+            cloudLayer.position.set(camera.position.x, 300, camera.position.z);
+            cloudUniforms.uTime.value = now / 1000;
+            cloudUniforms.uSun.value = 0.35 + Math.max(0, Math.sin(sunA)) * 0.75;
+            cloudLayer.visible = daySky;
+          }
         }
         sunDisc.position.set(camera.position.x + Math.cos(sunA) * 700, camera.position.y + Math.sin(sunA) * 700, camera.position.z + 200);
         sunDisc.visible = Math.sin(sunA) > -0.08;
@@ -2067,7 +2163,7 @@ float gNoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
           if (Math.abs(cx - pcx) > VIEW + 1 || Math.abs(cz - pcz) > VIEW + 1) {
             scene.remove(c);
             c.traverse((o) => {
-              if (o instanceof THREE.Mesh && o.geometry !== trunkGeo && o.geometry !== blobGeo && !coneGeos.includes(o.geometry as THREE.ConeGeometry) && o.geometry !== bladeGeo && o.geometry !== bushGeo && o.geometry !== berryGeo) o.geometry.dispose();
+              if (o instanceof THREE.Mesh && o.geometry !== trunkGeo && o.geometry !== blobGeo && !coneGeos.includes(o.geometry as THREE.ConeGeometry) && o.geometry !== bladeGeo && o.geometry !== flowerGeo && o.geometry !== bushGeo && o.geometry !== berryGeo) o.geometry.dispose();
             });
             worldPhysics.removeOwner(`c:${key}`);
             animals.forEach((a) => {
@@ -2616,6 +2712,12 @@ float gNoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
       chunks: chunks.size,
       solids: phys.solids.length,
       remotes: remotes.size,
+      // position of the first remote player, so tests can prove that
+      // another player's movement really arrives over the network
+      remotePos: (() => {
+        const first = remotes.values().next().value;
+        return first ? { x: first.av.root.position.x, y: first.av.root.position.y, z: first.av.root.position.z } : null;
+      })(),
       hearts: heartsRef.current,
       slimes: critters.count(),
       calls: renderer.info.render.calls,
@@ -2626,6 +2728,10 @@ float gNoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
       },
       setYaw: (yv: number) => {
         camYaw = yv;
+      },
+      // lets automated checks look at the sky without a mouse
+      setPitch: (pv: number) => {
+        camPitch = pv;
       },
       enter: (id: InteriorId) => enterInterior(id),
       exit: () => exitInterior(),
