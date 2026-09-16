@@ -92,6 +92,23 @@ export function cosmeticThumb(hero: HeroId, id: string, cb: (url: string) => voi
   }, cb);
 }
 
+// Full-body portrait of a hero in their signature look, for the hero picker.
+export function heroThumb(hero: HeroId, cb: (url: string) => void) {
+  request(`h:${hero}`, () => {
+    const scene = new THREE.Scene();
+    studio(scene);
+    const av = buildAvatar(HEROES.find((h) => h.id === hero) ?? HEROES[0], DEFAULT_EQUIP);
+    av.root.rotation.y = 0.35;
+    av.armR.rotation.x = -0.25;
+    av.tick(800, 0);
+    scene.add(av.root);
+    const cam = new THREE.PerspectiveCamera(28, 1, 0.05, 50);
+    cam.position.set(0.8, 2.3, 6.6);
+    cam.lookAt(0, 1.6, 0);
+    return { scene, cam, dispose: () => av.dispose() };
+  }, cb);
+}
+
 // ---------- consumables and ingredients ----------
 function M(color: number, rough = 0.5, extra: THREE.MeshStandardMaterialParameters = {}) {
   return new THREE.MeshStandardMaterial({ color, roughness: rough, ...extra });

@@ -9,6 +9,8 @@ import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
 import { SMAAPass } from "three/examples/jsm/postprocessing/SMAAPass.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { Sky } from "three/examples/jsm/objects/Sky.js";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
   HEROES,
   SKILLS,
@@ -29,8 +31,8 @@ import {
 import { STORY } from "@/lib/story";
 import { UI, QUEST_NOUN_NAMES, detectLang, saveLang, pick, type Lang } from "@/lib/i18n";
 import { COSMETICS, ITEMS, MAX_HEARTS, RECIPES, canCraft, type Slot } from "@/lib/catalog";
-import { hash2, terrainHeight, biomeAt, forestAt, addPad, mulberry32, WATER_Y, type Biome } from "@/lib/game/terrain";
-import { CHUNK, HOME, REGION, SITES, VILLAGE0, nearLandmark, villagePos, villageName } from "@/lib/game/world";
+import { hash2, terrainHeight, biomeAt, forestAt, addPad, removePad, mulberry32, WATER_Y, type Biome } from "@/lib/game/terrain";
+import { CHUNK, HOME, REGION, SITES, VILLAGE0, dungeonName, dungeonPos, nearLandmark, villagePos, villageName } from "@/lib/game/world";
 import { buildAnimal, herdFor, wander, animateAnimal, SPECIES, type Animal } from "@/lib/game/wildlife";
 import MiniMap, { type MapState } from "./game/MiniMap";
 import { Physics, STEP } from "@/lib/game/physics";
@@ -43,6 +45,7 @@ import { Room, type EmoteId, type NetPlayer } from "@/lib/game/net";
 import { colorFilter, engineKey, loadControls, loadGfx, saveControls, saveGfx, type Controls, type Gfx } from "@/lib/game/gfx";
 import { devnetBuy } from "@/lib/solana-client";
 import TouchControls from "./TouchControls";
+import Thumb from "./game/Thumb";
 import Menu, { Coin, EMOTE_TEXT, Heart, type MenuTab, type RoomUi } from "./game/Menu";
 
 const QUEST_NOUNS = [
@@ -54,7 +57,7 @@ const QUEST_NOUNS = [
 ] as const;
 
 const GUEST_KEY = "meadowfar-progress";
-const DAY_SECONDS = 240; // full day-night cycle length
+const DAY_SECONDS = 900; // full day-night cycle length
 
 // Quest variety: the rotation keeps play from turning into one long fetch loop.
 type QuestKind = "collect" | "race" | "treasure" | "delivery" | "shard";
@@ -460,7 +463,9 @@ export default function Game() {
 
     const scene = new THREE.Scene();
     const skyColor = new THREE.Color(0xbfe6f5);
-    scene.fog = new THREE.Fog(skyColor, FOG_FAR * 0.42, FOG_FAR);
+    // haze starts far out, so nearby ground keeps its colour and only the
+    // horizon fades into the sky (aerial perspective, not a white veil)
+    scene.fog = new THREE.Fog(skyColor, FOG_FAR * 0.72, FOG_FAR * 1.45);
 
     const camera = new THREE.PerspectiveCamera(G.fov, mountEl.clientWidth / mountEl.clientHeight, 0.08, 1200);
 
@@ -488,6 +493,22 @@ export default function Game() {
     const skyDome = new THREE.Mesh(new THREE.SphereGeometry(900, 32, 16), skyMat);
     skyDome.renderOrder = -10;
     scene.add(skyDome);
+    // physically based atmosphere (Rayleigh + Mie scattering) on non-low presets
+    let sky: Sky | null = null;
+    if (!LOW) {
+      sky = new Sky();
+      // keep the box corners (half-diagonal ~0.87 x scale) inside camera.far
+      sky.scale.setScalar(1100);
+      sky.frustumCulled = false;
+      sky.renderOrder = -10;
+      const su = sky.material.uniforms;
+      su.turbidity.value = 3.2;
+      su.rayleigh.value = 1.1;
+      su.mieCoefficient.value = 0.0025;
+      su.mieDirectionalG.value = 0.82;
+      scene.add(sky);
+      skyDome.visible = false;
+    }
     const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(22, 20, 14), new THREE.MeshBasicMaterial({ color: 0xfff1c4, fog: false }));
     scene.add(sunDisc);
     const moon = new THREE.Mesh(new THREE.SphereGeometry(14, 20, 14), new THREE.MeshBasicMaterial({ color: 0xf3f0dc, fog: false }));
@@ -675,9 +696,50 @@ export default function Game() {
 
     // ---------- chunked world with painted terrain ----------
     const chunks = new Map<string, THREE.Group>();
-    const trunkGeo = new THREE.CylinderGeometry(0.32, 0.48, 2.6, 8);
-    const blobGeo = new THREE.IcosahedronGeometry(1.6, 1);
-    const coneGeos = [new THREE.ConeGeometry(2.3, 3, 8), new THREE.ConeGeometry(1.8, 2.6, 8), new THREE.ConeGeometry(1.2, 2.1, 8)];
+    // trunk: tapered, slightly irregular, with root flare at the base
+    const trunkGeo = (() => {
+      const g = new THREE.CylinderGeometry(0.26, 0.62, 2.8, 9, 5);
+      const p = g.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+        const t = (y + 1.4) / 2.8;
+        const flare = t < 0.18 ? 1 + (0.18 - t) * 1.6 : 1;
+        const lean = Math.sin(t * 2.2) * 0.12;
+        p.setX(i, x * flare + lean);
+        p.setZ(i, z * flare * (1 + Math.sin(y * 3.1 + x * 2) * 0.06));
+      }
+      g.computeVertexNormals();
+      g.translate(0, 0.1, 0);
+      return g;
+    })();
+    // leaf cluster: a lumpy blob, not a clean sphere
+    const blobGeo = (() => {
+      const g = new THREE.IcosahedronGeometry(1.6, 2);
+      const p = g.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+        const k = 1 + Math.sin(x * 2.3) * 0.13 + Math.cos(z * 2.7) * 0.11 + Math.sin(y * 3.1) * 0.09;
+        p.setXYZ(i, x * k, y * k * 0.92, z * k);
+      }
+      g.computeVertexNormals();
+      return g;
+    })();
+    // pine tiers: drooping, ragged skirts instead of smooth cones
+    const pineTier = (r: number, h: number) => {
+      const g = new THREE.ConeGeometry(r, h, 11, 3);
+      const p = g.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+        const t = 1 - (y + h / 2) / h;
+        const ragged = 1 + Math.sin(Math.atan2(z, x) * 7) * 0.12 * t;
+        p.setX(i, x * ragged);
+        p.setZ(i, z * ragged);
+        p.setY(i, y - t * t * 0.28 * h); // branches sag toward the tips
+      }
+      g.computeVertexNormals();
+      return g;
+    };
+    const coneGeos = [pineTier(2.3, 3), pineTier(1.8, 2.6), pineTier(1.2, 2.1)];
     const leafMats = [0x2e8b46, 0x3aa055, 0x4fb562, 0x27793c].map((c) => new THREE.MeshStandardMaterial({ color: c, flatShading: true, roughness: 0.9 }));
     const autumn = new THREE.MeshStandardMaterial({ color: 0xe0923a, flatShading: true, roughness: 0.9 });
     const pineMat = new THREE.MeshStandardMaterial({ color: 0x2a6e4f, flatShading: true });
@@ -689,6 +751,51 @@ export default function Game() {
     const rockMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, flatShading: true, roughness: 0.95 });
     const sandRockMat = new THREE.MeshStandardMaterial({ color: 0xc9a15f, flatShading: true });
     const groundMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 });
+    // surface detail without textures: multi-scale noise breaks up flat
+    // colour (soil patches, grass tufts), steep slopes turn to rock, and a
+    // micro-normal perturbation gives the ground a lit, grainy relief
+    groundMat.onBeforeCompile = (sh) => {
+      sh.vertexShader = sh.vertexShader
+        .replace("#include <common>", "#include <common>\nvarying vec3 vWPos;\nvarying vec3 vWNorm;")
+        .replace(
+          "#include <worldpos_vertex>",
+          "#include <worldpos_vertex>\nvWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;\nvWNorm = normalize(mat3(modelMatrix) * objectNormal);"
+        );
+      sh.fragmentShader = sh.fragmentShader
+        .replace(
+          "#include <common>",
+          `#include <common>
+varying vec3 vWPos;
+varying vec3 vWNorm;
+float gHash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float gNoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
+  return mix(mix(gHash(i), gHash(i+vec2(1.,0.)), f.x), mix(gHash(i+vec2(0.,1.)), gHash(i+vec2(1.,1.)), f.x), f.y); }`
+        )
+        .replace(
+          "#include <color_fragment>",
+          `#include <color_fragment>
+{
+  float n1 = gNoise(vWPos.xz * 0.08);
+  float n2 = gNoise(vWPos.xz * 0.6);
+  float n3 = gNoise(vWPos.xz * 3.1);
+  diffuseColor.rgb *= 0.82 + n1 * 0.18 + n2 * 0.12 + n3 * 0.08;
+  float slope = 1.0 - clamp(vWNorm.y, 0.0, 1.0);
+  vec3 rock = vec3(0.47, 0.45, 0.42) * (0.8 + n2 * 0.35);
+  diffuseColor.rgb = mix(diffuseColor.rgb, rock, smoothstep(0.28, 0.5, slope));
+}`
+        )
+        .replace(
+          "#include <normal_fragment_maps>",
+          `#include <normal_fragment_maps>
+{
+  float e = 0.15;
+  float h0 = gNoise(vWPos.xz * 2.2);
+  float hx = gNoise((vWPos.xz + vec2(e, 0.0)) * 2.2);
+  float hz = gNoise((vWPos.xz + vec2(0.0, e)) * 2.2);
+  normal = normalize(normal + (vec3(h0 - hx, 0.0, h0 - hz) * 0.55));
+}`
+        );
+    };
     const uTime = { value: 0 };
     const waterMat = new THREE.MeshStandardMaterial({
       color: 0x2f86c8, transparent: true, opacity: 0.8, roughness: 0.12, metalness: 0.15,
@@ -705,9 +812,28 @@ export default function Game() {
            transformed.z += sin(uTime * 1.1 + wpW.x * 0.25) * 0.18 + cos(uTime * 0.8 + wpW.z * 0.2) * 0.12;`
         );
     };
-    const bladeGeo = new THREE.PlaneGeometry(0.17, 0.85);
-    bladeGeo.translate(0, 0.42, 0);
-    const grassMat = new THREE.MeshStandardMaterial({ color: 0x5aad4a, side: THREE.DoubleSide });
+    const bladeGeo = (() => {
+      // one tuft: five tapered blades fanning out from a common root
+      const parts: THREE.BufferGeometry[] = [];
+      for (let i = 0; i < 5; i++) {
+        const h = 0.6 + ((i * 37) % 11) / 20;
+        const p = new THREE.PlaneGeometry(0.15, h, 1, 3);
+        const pos = p.attributes.position;
+        for (let v = 0; v < pos.count; v++) {
+          const y = pos.getY(v) + h / 2;
+          const t = y / h;
+          pos.setX(v, pos.getX(v) * (1 - t * 0.75)); // taper to a point
+          pos.setZ(v, t * t * (0.18 + ((i * 13) % 7) / 40)); // bend over
+        }
+        p.translate(0, h / 2, 0);
+        p.rotateY((i / 5) * Math.PI * 2 + ((i * 29) % 13) / 30);
+        p.translate(((i % 3) - 1) * 0.06, 0, (((i + 1) % 3) - 1) * 0.06);
+        p.computeVertexNormals();
+        parts.push(p);
+      }
+      return mergeGeometries(parts) ?? new THREE.PlaneGeometry(0.17, 0.85);
+    })();
+    const grassMat = new THREE.MeshStandardMaterial({ color: 0x5aad4a, side: THREE.DoubleSide, roughness: 0.9 });
     grassMat.onBeforeCompile = (sh) => {
       sh.uniforms.uTime = uTime;
       sh.vertexShader =
@@ -721,7 +847,9 @@ export default function Game() {
            transformed.z += cos(uTime * 1.3 + wpG.x * 0.25) * sway * 0.55;`
         );
     };
-    const BLADES = Math.round(620 * G.grass);
+    // each instance is a tuft of crossed blades, so the meadow reads as dense
+    // ground cover rather than scattered single leaves
+    const BLADES = Math.round(900 * G.grass);
     const cA = new THREE.Color();
     const cB = new THREE.Color();
 
@@ -826,6 +954,8 @@ export default function Game() {
 
       if (BLADES && biome === "grass") {
         const blades = new THREE.InstancedMesh(bladeGeo, grassMat, BLADES);
+        blades.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(BLADES * 3), 3);
+        const tint = new THREE.Color();
         const mtx = new THREE.Matrix4();
         const q = new THREE.Quaternion();
         const sc = new THREE.Vector3();
@@ -838,13 +968,20 @@ export default function Game() {
           const by = terrainHeight(bx, bz);
           if (by < WATER_Y + 0.35) continue;
           pv.set(bx, by, bz);
-          q.setFromAxisAngle(up, hash2(bz, bx) * Math.PI);
-          sc.set(1, 0.7 + hash2(bx, bz) * 0.7, 1);
+          q.setFromAxisAngle(up, hash2(bz, bx) * Math.PI * 2);
+          const s = 0.75 + hash2(bx, bz) * 0.8;
+          sc.set(0.85 + hash2(bz * 3, bx) * 0.5, s, 0.85 + hash2(bx * 3, bz) * 0.5);
           mtx.compose(pv, q, sc);
+          // shade each tuft a little differently: sunlit tips, shaded hollows
+          const k = hash2(bx * 0.7, bz * 0.7);
+          const shadeK = forestAt(bx, bz);
+          tint.setRGB(0.78 + k * 0.4 - shadeK * 0.18, 0.95 + k * 0.25 - shadeK * 0.1, 0.62 + k * 0.32 - shadeK * 0.12);
+          blades.setColorAt(placed, tint);
           blades.setMatrixAt(placed++, mtx);
         }
         blades.count = placed;
         blades.instanceMatrix.needsUpdate = true;
+        if (blades.instanceColor) blades.instanceColor.needsUpdate = true;
         blades.computeBoundingSphere();
         g.add(blades);
       }
@@ -895,9 +1032,14 @@ export default function Game() {
           kind = kind < treeChance ? (kind / treeChance) * 0.42 : 0.42 + ((kind - treeChance) / (1 - treeChance)) * 0.58;
         }
         const s = 0.8 + hash2(z, x) * 0.5;
+        // every prop gets its own turn, tilt and slight squash, so repeated
+        // geometry never reads as copy-paste
+        const spin = hash2(x * 1.7, z * 2.3) * Math.PI * 2;
+        const tilt = (hash2(z * 3.1, x * 1.3) - 0.5) * 0.12;
         const add = (m: THREE.Mesh, px: number, py: number, pz: number, sc = 1) => {
           m.position.set(px, py, pz);
-          m.scale.setScalar(sc);
+          m.scale.set(sc * (0.92 + hash2(px, pz) * 0.18), sc * (0.94 + hash2(pz, px) * 0.16), sc * (0.92 + hash2(px * 2, pz) * 0.18));
+          m.rotation.set(tilt, spin + hash2(px, py) * 0.6, tilt * 0.7);
           m.castShadow = true;
           m.receiveShadow = true;
           g.add(m);
@@ -1026,12 +1168,51 @@ export default function Game() {
       hall: ["Aula Gunung", "Mountain Hall"],
       arena: ["Arena Latihan", "Training Arena"],
     };
-    const sites = SITES.map((s) => {
+    type Site = ReturnType<typeof buildPortalSite> & { owner: string; kind: PortalKind };
+    const sites: Site[] = SITES.map((s) => {
       const title = pick(langRef.current, siteTitles[s.kind][0], siteTitles[s.kind][1]);
       const site = buildPortalSite(worldPhysics, `site:${s.kind}`, s.kind, s.x, s.z, terrainHeight(s.x, s.z), title);
       scene.add(site.group);
-      return site;
+      return { ...site, owner: `site:${s.kind}`, kind: s.kind };
     });
+    // procedural dungeons far out in the world, built as their region nears
+    const dungeonSites = new Map<string, Site | null>();
+    let enteredSite: Site | null = null;
+    function streamDungeons(prx: number, prz: number) {
+      for (let dx = -3; dx <= 3; dx++)
+        for (let dz = -3; dz <= 3; dz++) {
+          const d = dungeonPos(prx + dx, prz + dz);
+          if (d) addPad(d.x, d.z, d.pad); // flatten before nearby chunks build
+        }
+      for (let dx = -1; dx <= 1; dx++)
+        for (let dz = -1; dz <= 1; dz++) {
+          const key = `${prx + dx},${prz + dz}`;
+          if (dungeonSites.has(key)) continue;
+          const d = dungeonPos(prx + dx, prz + dz);
+          if (!d) {
+            dungeonSites.set(key, null);
+            continue;
+          }
+          const owner = `dg:${key}`;
+          const built = buildPortalSite(worldPhysics, owner, d.kind, d.x, d.z, terrainHeight(d.x, d.z), dungeonName(d, langRef.current));
+          scene.add(built.group);
+          const site: Site = { ...built, owner, kind: d.kind };
+          sites.push(site);
+          dungeonSites.set(key, site);
+        }
+      dungeonSites.forEach((site, key) => {
+        const [rx, rz] = key.split(",").map(Number);
+        if (Math.abs(rx - prx) <= 2 && Math.abs(rz - prz) <= 2) return;
+        if (site && site !== enteredSite) {
+          scene.remove(site.group);
+          worldPhysics.removeOwner(site.owner);
+          sites.splice(sites.indexOf(site), 1);
+        }
+        const d = dungeonPos(rx, rz);
+        if (d && (Math.abs(rx - prx) > 4 || Math.abs(rz - prz) > 4)) removePad(d.x, d.z);
+        if (site !== enteredSite) dungeonSites.delete(key);
+      });
+    }
 
     // decorations placed on the tree house
     const decorMeshes = new Map<string, THREE.Object3D>();
@@ -1127,6 +1308,7 @@ export default function Game() {
     let arenaPops = 0;
     let composerPass: RenderPass | null = null;
     let aoPass: GTAOPass | null = null;
+    let bloomPass: UnrealBloomPass | null = null;
     const remotes = new Map<string, { av: Avatar; tag: THREE.Sprite; emote: THREE.Sprite | null; emoteUntil: number; lastEmoteAt: number; eqKey: string; walk: number; zone: string }>();
 
     function moveActors(to: THREE.Scene) {
@@ -1136,6 +1318,7 @@ export default function Game() {
       critters.setScene(to);
       if (composerPass) composerPass.scene = to;
       if (aoPass) aoPass.scene = to;
+      if (bloomPass) bloomPass.enabled = to !== scene;
       to.environment = envTex;
     }
 
@@ -1335,7 +1518,11 @@ export default function Game() {
         aoPass.blendIntensity = 0.85;
         composer.addPass(aoPass);
       }
-      composer.addPass(new UnrealBloomPass(new THREE.Vector2(mountEl.clientWidth, mountEl.clientHeight), 0.38, 0.55, 0.86));
+      // The scattering sky is far brighter than any glowing object, so under
+      // daylight bloom just veils the whole frame. Keep it for night and
+      // interiors, where lanterns and crystals are the brightest things.
+      bloomPass = new UnrealBloomPass(new THREE.Vector2(mountEl.clientWidth, mountEl.clientHeight), 0.42, 0.5, 0.82);
+      composer.addPass(bloomPass);
       composer.addPass(new OutputPass());
       if (G.aa) composer.addPass(new SMAAPass());
     }
@@ -1414,7 +1601,8 @@ export default function Game() {
       chime(780, "triangle", 0.9, 0.08);
     }
     function exitInterior() {
-      const site = sites.find((s) => s.kind === zone);
+      const site = enteredSite ?? sites.find((s) => s.kind === zone);
+      enteredSite = null;
       zone = "world";
       activeInterior = null;
       activeScene = scene;
@@ -1726,8 +1914,20 @@ export default function Game() {
         skyU.top.value.copy(cNight).lerp(cDay, dl);
         skyU.horizon.value.copy(hNight).lerp(hDay, dl).lerp(hDusk, dusk * 0.7);
         skyColor.copy(skyU.horizon.value);
-        (scene.fog as THREE.Fog).color.copy(skyColor);
+        // fog takes the horizon tint, a little deeper than the zenith colour
+        (scene.fog as THREE.Fog).color.copy(skyColor).lerp(new THREE.Color(0x9fc4d8), 0.25);
         skyDome.position.copy(camera.position);
+        if (sky) {
+          sky.position.copy(camera.position);
+          // Sky expects a world-space sun position (~450 km out), not a unit vector
+          sky.material.uniforms.sunPosition.value.set(Math.cos(sunA), Math.sin(sunA), 0.28).normalize().multiplyScalar(450000);
+          sunDisc.visible = false;
+          // after sunset the scattering sky is pitch black; use the starry gradient
+          const daySky = Math.sin(sunA) > -0.05;
+          sky.visible = daySky;
+          skyDome.visible = !daySky;
+          if (bloomPass) bloomPass.enabled = !daySky;
+        }
         sunDisc.position.set(camera.position.x + Math.cos(sunA) * 700, camera.position.y + Math.sin(sunA) * 700, camera.position.z + 200);
         sunDisc.visible = Math.sin(sunA) > -0.08;
         moon.position.set(camera.position.x - Math.cos(sunA) * 700, camera.position.y - Math.sin(sunA) * 700, camera.position.z - 200);
@@ -1827,6 +2027,7 @@ export default function Game() {
         const vkey = prx * 10007 + prz;
         if (vkey !== lastVillageCheck) {
           lastVillageCheck = vkey;
+          streamDungeons(prx, prz);
           for (let dx3 = -1; dx3 <= 1; dx3++)
             for (let dz3 = -1; dz3 <= 1; dz3++) {
               const key = `${prx + dx3},${prz + dz3}`;
@@ -1980,6 +2181,7 @@ export default function Game() {
         for (const s of sites) {
           if (Math.hypot(s.trigger.x - player.position.x, s.trigger.z - player.position.z) < 1.7) {
             enterInterior(s.kind);
+            enteredSite = s;
             break;
           }
         }
@@ -2786,7 +2988,9 @@ export default function Game() {
                 data-testid={`hero-${h.id}`}
                 className={`relative rounded-2xl px-4 py-5 text-base font-semibold shadow-lg transition ${unlocked ? "bg-white text-emerald-900 hover:scale-105 active:scale-95" : "cursor-not-allowed bg-white/40 text-emerald-900/40"}`}
               >
-                <span className="mx-auto mb-3 block h-10 w-10 rounded-full ring-4 ring-white" style={{ background: `#${h.cloth.toString(16).padStart(6, "0")}` }} />
+                <span className={`mx-auto mb-2 block rounded-2xl bg-gradient-to-b from-sky-100 to-emerald-50 ${unlocked ? "" : "opacity-50 grayscale"}`}>
+                  <Thumb kind="hero" id={h.id} alt={lang === "id" ? h.nama : h.namaEn} className="mx-auto h-28 w-28 sm:h-36 sm:w-36" />
+                </span>
                 {lang === "id" ? h.nama : h.namaEn}
                 {!unlocked && <span className="mt-1 block text-xs font-normal">{(lang === "id" ? UI.unlockAtLevel.id : UI.unlockAtLevel.en)(h.level)}</span>}
               </button>

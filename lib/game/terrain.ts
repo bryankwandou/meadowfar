@@ -29,6 +29,11 @@ export function addPad(x: number, z: number, r: number) {
 
 // Integer-lattice hash -> [0,1). Unlike stacked sine waves this never tiles,
 // so the world keeps changing no matter how far you walk.
+export function removePad(x: number, z: number) {
+  const i = PADS.findIndex((p) => p.x === x && p.z === z);
+  if (i >= 0) PADS.splice(i, 1);
+}
+
 function ihash(ix: number, iz: number, seed: number) {
   let h = Math.imul(ix, 374761393) ^ Math.imul(iz, 668265263) ^ Math.imul(seed, 2147483647);
   h = Math.imul(h ^ (h >>> 13), 1274126177);
@@ -75,7 +80,12 @@ function rawHeight(x: number, z: number) {
   const ridge = 1 - Math.abs(fbm(wx * 0.0045, wz * 0.0045, 4, 13));
   const mountains = ridge * ridge * ridge * 34 * mask * mask;
   const detail = noise2(x * 0.08, z * 0.08, 29) * 0.45;
-  return rolling + mountains + detail - 0.5;
+  // the starting valley (tree house, first village, cave, hall, arena) stays
+  // gentle; mountains and deep relief rise beyond ~180 m from the centre
+  const d = Math.hypot(x - 10, z - 5);
+  const calm = Math.min(1, Math.max(0, (d - 110) / 180));
+  const k = calm * calm * (3 - 2 * calm);
+  return rolling * (0.35 + 0.65 * k) + mountains * k + detail - 0.5;
 }
 
 export function terrainHeight(x: number, z: number) {
