@@ -159,7 +159,10 @@ export class Input {
   }
 
   read(dt: number): InputFrame {
-    const k = this.keys;
+    // a key pressed and released between two slow frames still counts as held
+    // for this frame, so short taps are never lost
+    const k: Record<string, boolean> = { ...this.keys };
+    for (const e of this.edges) k[e] = true;
     const sens = this.settings.sensitivity;
     let moveX = 0, moveY = 0, lookX = 0, lookY = 0;
     let jump = !!k[" "];
