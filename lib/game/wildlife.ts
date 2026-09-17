@@ -8,7 +8,7 @@ import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js
 import { hash2, terrainHeight, biomeAt, forestAt, WATER_Y } from "./terrain";
 import { nearLandmark } from "./world";
 
-export type Species = "horse" | "pony" | "deer" | "sheep" | "goat" | "camel" | "llama" | "reindeer" | "yak" | "capybara";
+export type Species = "horse" | "pony" | "deer" | "sheep" | "goat" | "camel" | "llama" | "reindeer" | "yak" | "capybara" | "fox" | "wolf" | "husky" | "shiba";
 
 interface SpeciesDef {
   id: Species;
@@ -38,6 +38,10 @@ export const SPECIES: Record<Species, SpeciesDef> = {
   reindeer: { id: "reindeer", nama: "Rusa kutub", namaEn: "Reindeer", body: 0x7d6a58, belly: 0xefe8dd, dark: 0x2e2620, len: 1.6, girth: 0.46, leg: 1.0, neck: 0.7, head: 0.5, speed: 2.0, saddle: 1.52, extras: ["antlers", "shortTail"] },
   yak: { id: "yak", nama: "Yak", namaEn: "Yak", body: 0x3f3129, belly: 0x5a4a3f, dark: 0x1a1512, len: 1.8, girth: 0.7, leg: 0.8, neck: 0.35, head: 0.6, speed: 1.4, saddle: 1.7, extras: ["horns", "wool", "hump"] },
   capybara: { id: "capybara", nama: "Kapibara", namaEn: "Capybara", body: 0x9a6b44, belly: 0xa77a52, dark: 0x3b2718, len: 1.1, girth: 0.42, leg: 0.35, neck: 0.1, head: 0.46, speed: 1.2, saddle: 0.95, extras: [] },
+  fox: { id: "fox", nama: "Rubah", namaEn: "Fox", body: 0xc8622a, belly: 0xf3e9dc, dark: 0x2a1c14, len: 1.2, girth: 0.34, leg: 0.6, neck: 0.3, head: 0.4, speed: 1.9, saddle: 0.95, extras: [] },
+  wolf: { id: "wolf", nama: "Serigala", namaEn: "Wolf", body: 0x7d7a78, belly: 0xc9c4bd, dark: 0x2a2826, len: 1.5, girth: 0.42, leg: 0.8, neck: 0.35, head: 0.46, speed: 2.1, saddle: 1.2, extras: [] },
+  husky: { id: "husky", nama: "Anjing husky", namaEn: "Husky", body: 0x5d6168, belly: 0xf2f0ec, dark: 0x22252a, len: 1.4, girth: 0.42, leg: 0.75, neck: 0.35, head: 0.44, speed: 1.9, saddle: 1.12, extras: [] },
+  shiba: { id: "shiba", nama: "Anjing shiba", namaEn: "Shiba dog", body: 0xd08a45, belly: 0xf6eee2, dark: 0x2c2018, len: 1.15, girth: 0.36, leg: 0.6, neck: 0.3, head: 0.4, speed: 1.7, saddle: 0.95, extras: [] },
 };
 
 const matCache = new Map<number, THREE.MeshStandardMaterial>();
@@ -76,6 +80,7 @@ export interface Animal {
 // model keep the primitive body built below.
 const MODEL_FILE: Partial<Record<Species, string>> = {
   horse: "Horse", pony: "Horse_White", deer: "Deer", reindeer: "Stag", llama: "Alpaca", yak: "Bull",
+  fox: "Fox", wolf: "Wolf", husky: "Husky", shiba: "ShibaInu",
 };
 interface LoadedModel { scene: THREE.Object3D; clips: THREE.AnimationClip[]; height: number }
 const models = new Map<string, LoadedModel>();
@@ -343,11 +348,11 @@ export function buildAnimal(species: Species, seed: number): Animal {
 function pickSpecies(x: number, z: number, r: number): Species {
   const b = biomeAt(x, z);
   if (b === "desert") return r < 0.55 ? "camel" : r < 0.85 ? "llama" : "goat";
-  if (b === "snow") return r < 0.5 ? "reindeer" : r < 0.8 ? "yak" : "goat";
+  if (b === "snow") return r < 0.4 ? "reindeer" : r < 0.65 ? "yak" : r < 0.85 ? "husky" : "wolf";
   if (terrainHeight(x, z) > 12) return r < 0.6 ? "goat" : "llama";
   const f = forestAt(x, z);
-  if (f > 0.6) return r < 0.6 ? "deer" : r < 0.8 ? "pony" : "capybara";
-  return r < 0.3 ? "horse" : r < 0.55 ? "sheep" : r < 0.72 ? "pony" : r < 0.87 ? "deer" : "capybara";
+  if (f > 0.6) return r < 0.45 ? "deer" : r < 0.6 ? "fox" : r < 0.72 ? "wolf" : r < 0.87 ? "pony" : "capybara";
+  return r < 0.27 ? "horse" : r < 0.5 ? "sheep" : r < 0.65 ? "pony" : r < 0.78 ? "deer" : r < 0.9 ? "shiba" : "capybara";
 }
 
 // Deterministic herd for a chunk, so every player sees the same animals start
