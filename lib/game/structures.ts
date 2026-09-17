@@ -7,11 +7,27 @@ import { Physics } from "./physics";
 import { terrainHeight } from "./terrain";
 
 const cache = new Map<string, THREE.MeshStandardMaterial>();
+// CC0 photo textures (Poly Haven), see public/textures/LICENSE.txt
+const texCache = new Map<string, THREE.Texture>();
+function photo(name: string, repeat: number) {
+  const key = `${name}|${repeat}`;
+  let t = texCache.get(key);
+  if (!t) {
+    t = new THREE.TextureLoader().load(`/textures/${name}_diff.jpg`);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(repeat, repeat);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 4;
+    texCache.set(key, t);
+  }
+  return t;
+}
+
 export function smat(
   color: number,
-  o: { rough?: number; metal?: number; glow?: number; flat?: boolean; opacity?: number } = {}
+  o: { rough?: number; metal?: number; glow?: number; flat?: boolean; opacity?: number; tex?: string; repeat?: number } = {}
 ) {
-  const key = `${color}|${o.rough ?? 0.8}|${o.metal ?? 0}|${o.glow ?? 0}|${o.flat ?? false}|${o.opacity ?? 1}`;
+  const key = `${color}|${o.rough ?? 0.8}|${o.metal ?? 0}|${o.glow ?? 0}|${o.flat ?? false}|${o.opacity ?? 1}|${o.tex ?? ""}|${o.repeat ?? 1}`;
   let m = cache.get(key);
   if (!m) {
     m = new THREE.MeshStandardMaterial({
@@ -23,6 +39,7 @@ export function smat(
       flatShading: !!o.flat,
       transparent: (o.opacity ?? 1) < 1,
       opacity: o.opacity ?? 1,
+      map: o.tex && typeof window !== "undefined" ? photo(o.tex, o.repeat ?? 1) : null,
     });
     cache.set(key, m);
   }
@@ -118,10 +135,10 @@ export function buildHouse(physics: Physics, owner: string, x: number, z: number
   const floorY = maxT + 0.35;
   const g = new THREE.Group();
   const { box, solid, add, toWorld } = placer(g, physics, owner, x, floorY, z, quarter);
-  const wall = smat(P.wall, { rough: 0.9 });
-  const trim = smat(P.trim, { rough: 0.75 });
-  const stone = smat(0xa79f93, { rough: 0.95, flat: true });
-  const wood = smat(0xb07a45, { rough: 0.7 });
+  const wall = smat(P.wall, { rough: 0.9, tex: "plastered_wall", repeat: 2 });
+  const trim = smat(P.trim, { rough: 0.75, tex: "wood_planks" });
+  const stone = smat(0xf0ebe4, { rough: 0.95, tex: "stone_wall", repeat: 2 });
+  const wood = smat(0xf2d2a8, { rough: 0.7, tex: "wood_planks", repeat: 3 });
   const glass = smat(0xffe3a0, { glow: 0.45, rough: 0.2 });
 
   // stone plinth that meets the hillside, top = floor
@@ -214,8 +231,8 @@ export function buildHouse(physics: Physics, owner: string, x: number, z: number
 export function buildTreeHouse(physics: Physics, owner: string, x: number, z: number, baseY: number) {
   const g = new THREE.Group();
   const { box, solid, add } = placer(g, physics, owner, x, baseY, z, 0);
-  const bark = smat(0x7a4d2b, { rough: 0.95 });
-  const plank = smat(0xc98a4b, { rough: 0.75 });
+  const bark = smat(0xc9a07a, { rough: 0.95, tex: "bark_willow_02" });
+  const plank = smat(0xf0c08a, { rough: 0.75, tex: "wood_planks", repeat: 2 });
   const dark = smat(0x8a5a2b, { rough: 0.7 });
   const DECK = 5.35;
 
