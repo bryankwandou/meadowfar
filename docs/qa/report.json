@@ -1,0 +1,216 @@
+{
+  "base": "http://localhost:3210",
+  "when": "2026-09-17T06:06:46.540Z",
+  "checks": [
+    {
+      "name": "desktop: world renders chunks + solids",
+      "pass": true,
+      "detail": "chunks=25 solids=400 draw calls=2096"
+    },
+    {
+      "name": "keyboard W walks forward (away from camera), not inverted",
+      "pass": true,
+      "detail": "dz=-2.97"
+    },
+    {
+      "name": "keyboard D strafes right",
+      "pass": false,
+      "detail": "dx=0.00"
+    },
+    {
+      "name": "mouse drag right turns camera right",
+      "pass": true,
+      "detail": "yaw 0.00 -> -0.64"
+    },
+    {
+      "name": "V toggles first-person / third-person",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "walk through a doorway into a cottage (indoors detected)",
+      "pass": false,
+      "detail": "pos=(43.5,0.0,36.8)"
+    },
+    {
+      "name": "back wall blocks the player (no walking through walls)",
+      "pass": true,
+      "detail": "still inside after 2.5s pushing into the wall"
+    },
+    {
+      "name": "floor holds the player (no falling through)",
+      "pass": true,
+      "detail": "y=0.15"
+    },
+    {
+      "name": "enter cave interior",
+      "pass": true,
+      "detail": "solids=41"
+    },
+    {
+      "name": "cave: walls keep player inside",
+      "pass": true,
+      "detail": "pos=(0.0,0.0,14.0)"
+    },
+    {
+      "name": "enter hall interior",
+      "pass": true,
+      "detail": "solids=29"
+    },
+    {
+      "name": "hall: walls keep player inside",
+      "pass": true,
+      "detail": "pos=(0.0,0.0,8.7)"
+    },
+    {
+      "name": "enter arena interior",
+      "pass": true,
+      "detail": "solids=40"
+    },
+    {
+      "name": "arena: walls keep player inside",
+      "pass": true,
+      "detail": "pos=(0.0,0.0,14.7)"
+    },
+    {
+      "name": "exit interior returns to the world",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "minimap is on screen",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "M opens the world map and it zooms",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "ride a wild animal and move on it",
+      "pass": false,
+      "detail": "species=pony animals=29 dz=-1.7"
+    },
+    {
+      "name": "E gets off the animal",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "buy a cosmetic with coins and wear it",
+      "pass": true,
+      "detail": "coins before=60"
+    },
+    {
+      "name": "inventory lists items",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "crafting panel lists recipes",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "seven graphics presets + picture sliders",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "adventure mode shows hearts",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "arena spawns slimes",
+      "pass": false,
+      "detail": "slimes=0"
+    },
+    {
+      "name": "phone landscape: on-screen controller is visible",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "phone landscape: stick pushed UP walks FORWARD (not inverted)",
+      "pass": true,
+      "detail": "dz=-12.59"
+    },
+    {
+      "name": "phone landscape: jump button works",
+      "pass": true,
+      "detail": "dy=0.39"
+    },
+    {
+      "name": "phone landscape: drag right side turns camera right",
+      "pass": true,
+      "detail": "yaw 0.00 -> -0.54"
+    },
+    {
+      "name": "phone landscape: village buildings exist in the scene",
+      "pass": true,
+      "detail": "solids=608 calls=2386"
+    },
+    {
+      "name": "phone portrait: on-screen controller is visible",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "phone portrait: stick pushed UP walks FORWARD (not inverted)",
+      "pass": true,
+      "detail": "dz=-10.18"
+    },
+    {
+      "name": "phone portrait: jump button works",
+      "pass": false,
+      "detail": "dy=0.28"
+    },
+    {
+      "name": "phone portrait: drag right side turns camera right",
+      "pass": true,
+      "detail": "yaw 0.00 -> -0.54"
+    },
+    {
+      "name": "phone portrait: village buildings exist in the scene",
+      "pass": true,
+      "detail": "solids=608 calls=589"
+    },
+    {
+      "name": "gamepad left stick UP walks forward (not inverted)",
+      "pass": false,
+      "detail": "dz=-1.28"
+    },
+    {
+      "name": "gamepad right stick RIGHT turns camera right",
+      "pass": false,
+      "detail": "yaw 0.00 -> -0.13"
+    },
+    {
+      "name": "gamepad A jumps",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "two players join the same room by code",
+      "pass": true,
+      "detail": "code=2CHZXS"
+    },
+    {
+      "name": "each player sees the other avatar in their world",
+      "pass": true,
+      "detail": "A sees 1, B sees 1"
+    },
+    {
+      "name": "round-trip ping is measured and shown",
+      "pass": true,
+      "detail": "2CHZXS · 2p · 2954ms"
+    }
+  ],
+  "consoleErrors": [],
+  "desktopFps": "23 fps",
+  "ping": "2CHZXS · 2p · 2954ms",
+  "passed": 34,
+  "failed": 7
+}
