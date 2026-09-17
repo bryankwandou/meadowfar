@@ -3013,6 +3013,7 @@ float gNoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
     if (p.storyChapter >= 6) grant("story-6");
     if (p.storyChapter >= 12) grant("story-12");
     if (p.storyChapter >= 24) grant("story-24");
+    if (p.storyChapter >= 36) grant("story-36");
     Object.assign(p, applyUnlocks(p));
     setProg({ ...p });
     save();
