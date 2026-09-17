@@ -3,6 +3,8 @@
 // balls. Every species can be ridden: walk up, press E / Y / the Ride button.
 
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { hash2, terrainHeight, biomeAt, forestAt, WATER_Y } from "./terrain";
 import { nearLandmark } from "./world";
 
@@ -63,6 +65,76 @@ export interface Animal {
   vy: number;
   ridden: boolean;
   owner: string;
+  // set once the rigged model replaces the primitive body
+  mixer?: THREE.AnimationMixer;
+  actions?: Record<string, THREE.AnimationAction>;
+  clip?: string;
+}
+
+// Rigged, animated animals from Quaternius "Ultimate Animated Animals"
+// (CC0, quaternius.com), served from public/models/animals. Species without a
+// model keep the primitive body built below.
+const MODEL_FILE: Partial<Record<Species, string>> = {
+  horse: "Horse", pony: "Horse_White", deer: "Deer", reindeer: "Stag", llama: "Alpaca", yak: "Bull",
+};
+interface LoadedModel { scene: THREE.Object3D; clips: THREE.AnimationClip[]; height: number }
+const models = new Map<string, LoadedModel>();
+let modelsRequested = false;
+
+export function preloadAnimalModels() {
+  if (modelsRequested || typeof window === "undefined") return;
+  modelsRequested = true;
+  const loader = new GLTFLoader();
+  for (const file of new Set(Object.values(MODEL_FILE))) {
+    loader.load(
+      `/models/animals/${file}.gltf`,
+      (gltf) => {
+        gltf.scene.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(gltf.scene);
+        gltf.scene.traverse((o) => {
+          if (o instanceof THREE.Mesh) {
+            o.castShadow = true;
+            o.userData.shared = true;
+          }
+        });
+        models.set(file, { scene: gltf.scene, clips: gltf.animations, height: box.max.y - box.min.y });
+      },
+      undefined,
+      () => {} // missing model: the primitive body stays
+    );
+  }
+}
+
+// Swap the primitive body for the rigged model (if it has loaded). The leg and
+// neck groups stay in place, hidden, so riding and gait code keep working.
+function upgradeToModel(a: Animal) {
+  const file = MODEL_FILE[a.species];
+  const src = file && models.get(file);
+  if (!src) return;
+  const body = cloneSkinned(src.scene);
+  // the model's back sits at about 62% of its full height (head raised)
+  const s = a.def.saddle / 0.62 / src.height;
+  body.scale.setScalar(s);
+  body.traverse((o) => {
+    if (o instanceof THREE.Mesh) o.frustumCulled = false; // skinned bounds lag behind the pose
+  });
+  for (const c of a.group.children) if (!c.userData.saddle) c.visible = false;
+  a.group.add(body);
+  a.mixer = new THREE.AnimationMixer(body);
+  a.actions = {};
+  for (const clip of src.clips) a.actions[clip.name] = a.mixer.clipAction(clip);
+  a.clip = "";
+}
+
+function playClip(a: Animal, name: string, timeScale: number) {
+  const next = a.actions?.[name];
+  if (!next) return;
+  next.timeScale = timeScale;
+  if (a.clip === name) return;
+  const prev = a.clip ? a.actions![a.clip] : null;
+  next.reset().play();
+  if (prev) prev.crossFadeTo(next, 0.3, false);
+  a.clip = name;
 }
 
 export function buildAnimal(species: Species, seed: number): Animal {
@@ -125,6 +197,20 @@ export function buildAnimal(species: Species, seed: number): Animal {
   const seat = new THREE.Mesh(new THREE.BoxGeometry(R * 1.1, 0.1, L * 0.26), m(0x5a3a22, 0.7));
   seat.position.set(0, hipY + R + 0.04 + (d.extras.includes("hump") && species === "camel" ? R * 0.6 : 0), 0);
   g.add(blanket, seat);
+  // a saddle that stays when a rigged model replaces this body
+  if (MODEL_FILE[species]) {
+    const saddle = new THREE.Group();
+    saddle.userData.saddle = true;
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.07, 0.72), m(0xb8433a, 0.9));
+    const leather = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.08, 0.5), m(0x5a3a22, 0.7));
+    leather.position.y = 0.07;
+    const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.1, 8), m(0x5a3a22, 0.7));
+    horn.position.set(0, 0.14, 0.22);
+    saddle.add(pad, leather, horn);
+    saddle.position.set(0, d.saddle - 0.12, 0.05);
+    saddle.visible = false; // shown once the model is on
+    g.add(saddle);
+  }
 
   // legs: upper + lower segment with a knee, and a hoof
   const legs: THREE.Group[] = [];
@@ -283,6 +369,16 @@ export function herdFor(cx: number, cz: number, size: number) {
 }
 
 export function animateAnimal(a: Animal, dt: number, now: number, moving: number) {
+  if (!a.mixer) upgradeToModel(a);
+  if (a.mixer) {
+    for (const c of a.group.children) if (c.userData.saddle) c.visible = true;
+    const grazing = moving < 0.02 && !a.ridden && Math.sin(now / 1600 + a.graze * 7) > 0.35;
+    if (moving > 1.05) playClip(a, "Gallop", Math.min(1.6, moving * 0.8));
+    else if (moving > 0.02) playClip(a, "Walk", 0.6 + moving * 0.9);
+    else playClip(a, grazing ? "Eating" : "Idle", 1);
+    a.mixer.update(dt);
+    return;
+  }
   const k = Math.min(1, moving);
   a.walk += dt * (4 + 7 * k) * (k > 0.02 ? 1 : 0);
   const sw = 0.55 * k;

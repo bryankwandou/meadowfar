@@ -1,0 +1,2 @@
+Photo textures from Poly Haven (https://polyhaven.com), CC0 1.0.
+rock_face, forest_ground_04, bark_willow_02, aerial_grass_rock (1k diffuse)
