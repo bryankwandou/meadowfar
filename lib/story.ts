@@ -1,6 +1,7 @@
 // "Bintang yang Hilang dari Langit Meadowfar" / "The Lost Stars of Meadowfar"
 // Act I (12 chapters): the missing stars. Act II (12 chapters): the lantern
-// keeper Sela, who took them out of loneliness. Indonesian and English.
+// keeper Sela, who took them out of loneliness. Act III (12 chapters): the
+// silent north wind and the wolves who lost their song. Indonesian and English.
 
 export interface Chapter {
   bab: number;
@@ -22,6 +23,9 @@ export const CHAPTER_TASK: Record<number, "collect" | "race" | "treasure" | "del
   13: "collect", 14: "collect", 15: "delivery", 16: "race",
   17: "treasure", 18: "delivery", 19: "collect", 20: "collect",
   21: "shard", 22: "collect", 23: "delivery", 24: "shard",
+  25: "collect", 26: "race", 27: "treasure", 28: "delivery",
+  29: "collect", 30: "race", 31: "shard", 32: "treasure",
+  33: "delivery", 34: "collect", 35: "race", 36: "shard",
 };
 
 export const STORY: Chapter[] = [
@@ -239,7 +243,115 @@ export const STORY: Chapter[] = [
     teks: "Malam itu, dua belas bintang pinjaman naik kembali ke langit, dan lentera Sela menyala paling terang di seluruh pegunungan. Sekarang jalan gunung ramai lagi: anak-anak mendaki untuk mendengar ceritanya, dan Sela menyalakan jalan untuk mereka setiap senja. Langit punya dua penjaga sekarang, dan tidak ada yang sendirian lagi.",
     judulEn: "Two keepers, one sky",
     teksEn: "That night the twelve borrowed stars rose back into the sky, and Sela's lantern burned brighter than any light in the mountains. The mountain path is busy again: children climb to hear her stories, and Sela lights the way for them every dusk. The sky has two keepers now, and no one is alone anymore.",
-    tugas: "Kisah ini selesai. Ajak temanmu ke ruang main bareng dan jelajahi dunia bersama.",
-    tugasEn: "This story is complete. Invite a friend into a shared room and explore the world together.",
+    tugas: "Rayakan bersama temanmu, lalu kembali ke tetua: angin dari utara membawa kabar baru.",
+    tugasEn: "Celebrate with a friend, then return to the elder: the north wind is bringing new word.",
+  },
+  {
+    bab: 25,
+    judul: "Angin yang berhenti bernyanyi",
+    teks: "Suatu pagi, angin utara tidak lagi bersiul di sela pepohonan. Daun-daun diam, kincir desa berhenti, dan burung-burung terbang rendah dengan bingung. Tetua menatap ke arah pegunungan salju. \"Angin utara selalu bernyanyi bersama para serigala,\" katanya pelan. \"Kalau angin diam, berarti para serigala juga diam.\"",
+    judulEn: "The wind that stopped singing",
+    teksEn: "One morning the north wind no longer whistled through the trees. The leaves were still, the village windmills stopped, and the birds flew low and confused. The elder looked toward the snowy mountains. \"The north wind always sings with the wolves,\" she said softly. \"If the wind is silent, the wolves are silent too.\"",
+    tugas: "Kumpulkan bulu-bulu yang jatuh di padang untuk tahu dari mana angin terakhir bertiup.",
+    tugasEn: "Gather the fallen feathers in the meadow to learn where the last wind blew from.",
+  },
+  {
+    bab: 26,
+    judul: "Rubah yang cepat",
+    teks: "Di tepi hutan, seekor rubah merah memperhatikanmu dari balik semak. Ia tidak lari. \"Aku tahu jalan ke utara,\" katanya dengan mata berkilat, \"tapi aku hanya menunjukkannya kepada yang bisa mengejarku.\" Lalu ia melesat, ekornya seperti nyala api kecil di antara pohon.",
+    judulEn: "The quick fox",
+    teksEn: "At the edge of the forest a red fox watched you from behind a bush. It did not run. \"I know the way north,\" it said, eyes glinting, \"but I only show it to someone who can keep up.\" Then it darted off, its tail like a small flame between the trees.",
+    tugas: "Ikuti balapan melewati semua gerbang sebelum waktu habis.",
+    tugasEn: "Run the race through every gate before time runs out.",
+  },
+  {
+    bab: 27,
+    judul: "Jejak di bawah salju",
+    teks: "Rubah itu berhenti di batas salju dan menunjuk jejak kaki besar yang setengah tertutup. \"Serigala,\" bisiknya. \"Mereka menyembunyikan sesuatu di sini sebelum menghilang.\" Di bawah salju ada kotak kayu tua yang diikat tali kulit, dan di dalamnya sebuah peluit dari tulang, retak di tengahnya.",
+    judulEn: "Tracks under the snow",
+    teksEn: "The fox stopped at the snow line and pointed at large, half-buried paw prints. \"Wolves,\" it whispered. \"They hid something here before they disappeared.\" Under the snow lay an old wooden box tied with leather cord, and inside it a bone whistle, cracked down the middle.",
+    tugas: "Cari harta yang tersembunyi dengan mengikuti petunjuk di peta.",
+    tugasEn: "Find the hidden treasure by following the clue on the map.",
+  },
+  {
+    bab: 28,
+    judul: "Anjing kereta dari utara",
+    teks: "Di desa salju, para anjing husky menarik kereta berisi kayu bakar, tetapi mereka tampak lelah. \"Tanpa angin utara, salju tidak pernah memadat,\" kata pengemudi kereta. \"Kaki anjing-anjing kami tenggelam setiap langkah.\" Ia memintamu membawa selimut dan makanan ke pos-pos di sepanjang jalan.",
+    judulEn: "The sled dogs of the north",
+    teksEn: "In the snow village the huskies pulled sleds of firewood, but they looked tired. \"Without the north wind the snow never packs down,\" said the sled driver. \"Our dogs sink with every step.\" She asked you to carry blankets and food to the posts along the trail.",
+    tugas: "Antarkan paket ke penduduk yang membutuhkannya.",
+    tugasEn: "Deliver the parcel to the villager who needs it.",
+  },
+  {
+    bab: 29,
+    judul: "Peluit yang retak",
+    teks: "Pandai kayu desa memeriksa peluit tulang itu. \"Ini peluit pemanggil angin,\" katanya takjub. \"Hanya bisa diperbaiki dengan getah pohon tua, lumut perak, dan batu yang pernah disentuh petir.\" Ia menggambarkan tempat-tempat itu di selembar kertas dan memberikannya kepadamu.",
+    judulEn: "The cracked whistle",
+    teksEn: "The village woodworker examined the bone whistle. \"This is a wind-calling whistle,\" he said in wonder. \"It can only be mended with sap from an old tree, silver moss, and a stone that lightning once touched.\" He sketched the places on a scrap of paper and handed it to you.",
+    tugas: "Kumpulkan bahan-bahan di alam untuk memperbaiki peluit.",
+    tugasEn: "Gather materials in the wild to mend the whistle.",
+  },
+  {
+    bab: 30,
+    judul: "Serigala pertama",
+    teks: "Di lereng gunung, seekor serigala abu-abu berdiri di atas batu. Ia kurus dan diam, dan ketika kamu meniup peluit yang sudah diperbaiki, hanya keluar suara serak. Serigala itu memiringkan kepalanya, lalu berlari menanjak, berhenti sesekali untuk memastikan kamu mengikutinya.",
+    judulEn: "The first wolf",
+    teksEn: "On the mountainside a grey wolf stood on a rock. It was thin and silent, and when you blew the mended whistle, only a hoarse sound came out. The wolf tilted its head, then ran uphill, stopping now and then to make sure you were following.",
+    tugas: "Ikuti serigala itu: selesaikan balapan melewati gerbang-gerbang di lereng.",
+    tugasEn: "Follow the wolf: finish the race through the gates on the slope.",
+  },
+  {
+    bab: 31,
+    judul: "Gua kawanan",
+    teks: "Serigala itu membawamu ke gua di balik air terjun beku. Di dalamnya seluruh kawanan berbaring rapat, terlalu lemah untuk melolong. Pemimpin mereka, serigala tua bernama Arun, membuka satu mata. \"Suara kami diambil,\" katanya. \"Tertidur di dalam kristal-kristal yang jatuh dari langit malam itu.\"",
+    judulEn: "The pack's cave",
+    teksEn: "The wolf led you to a cave behind a frozen waterfall. Inside, the whole pack lay close together, too weak to howl. Their leader, an old wolf named Arun, opened one eye. \"Our voices were taken,\" he said. \"They sleep inside the crystals that fell from the sky that night.\"",
+    tugas: "Temukan pecahan kristal yang menyimpan suara kawanan.",
+    tugasEn: "Find the crystal shards that hold the pack's voices.",
+  },
+  {
+    bab: 32,
+    judul: "Kristal di dasar danau",
+    teks: "Satu kristal terakhir tenggelam di danau yang dulu jernih. Sela, yang datang dari puncaknya dengan lentera, menerangi air untukmu. \"Aku juga pernah kehilangan suaraku,\" katanya. \"Waktu itu aku terlalu lama sendirian. Mungkin para serigala hanya butuh ditemukan.\"",
+    judulEn: "The crystal in the lake bed",
+    teksEn: "One last crystal had sunk into a lake that was once clear. Sela, who came down from her peak with her lantern, lit the water for you. \"I lost my voice once too,\" she said. \"Back then I had been alone too long. Maybe the wolves just need to be found.\"",
+    tugas: "Cari harta tersembunyi di dekat air dengan bantuan cahaya Sela.",
+    tugasEn: "Search for the hidden treasure near the water with Sela's light.",
+  },
+  {
+    bab: 33,
+    judul: "Makanan untuk kawanan",
+    teks: "Kristal-kristal mulai berdengung, tetapi kawanan terlalu lemah untuk menerima suaranya kembali. Desa-desa yang dulu takut pada serigala kini berdebat. Lalu Tomas, anak yang dulu kamu tolong, berdiri. \"Mereka menjaga hutan kita dari jauh selama bertahun-tahun,\" katanya. \"Sekarang giliran kita.\"",
+    judulEn: "Food for the pack",
+    teksEn: "The crystals began to hum, but the pack was too weak to take their voices back. The villages that once feared wolves argued. Then Tomas, the child you once helped, stood up. \"They guarded our forest from afar for years,\" he said. \"Now it is our turn.\"",
+    tugas: "Antarkan bekal dari desa ke gua kawanan.",
+    tugasEn: "Carry supplies from the village to the pack's cave.",
+  },
+  {
+    bab: 34,
+    judul: "Anjing kecil pemberani",
+    teks: "Seekor anjing shiba dari desa lembah ikut diam-diam di belakangmu sepanjang jalan. Saat badai salju datang, ia yang menemukan jalan pulang dengan hidungnya, dan ia yang menggali bunga-bunga es yang dibutuhkan untuk menghangatkan kawanan. Anak-anak desa menamainya Kiko.",
+    judulEn: "The brave little dog",
+    teksEn: "A shiba dog from the valley village had quietly followed you the whole way. When a snowstorm came, it was the one that sniffed out the way home, and it was the one that dug up the frost flowers needed to warm the pack. The village children named it Kiko.",
+    tugas: "Bersama Kiko, kumpulkan bunga es dan cahaya kecil di salju.",
+    tugasEn: "With Kiko, gather frost flowers and small lights in the snow.",
+  },
+  {
+    bab: 35,
+    judul: "Lomba ke puncak angin",
+    teks: "Arun berdiri lagi, kakinya masih gemetar. \"Peluit harus ditiup di puncak tertinggi saat fajar,\" katanya, \"tepat ketika angin pertama bangun.\" Fajar tinggal sebentar lagi. Kuda, rusa kutub, dan anjing-anjing husky berkumpul, siap membawamu secepat mungkin.",
+    judulEn: "The race to the wind's peak",
+    teksEn: "Arun stood again, his legs still trembling. \"The whistle must be blown on the highest peak at dawn,\" he said, \"just as the first wind wakes.\" Dawn was close. Horses, reindeer and huskies gathered, ready to carry you as fast as they could.",
+    tugas: "Berpacu melewati semua gerbang sebelum fajar tiba.",
+    tugasEn: "Race through every gate before dawn arrives.",
+  },
+  {
+    bab: 36,
+    judul: "Lolongan pertama",
+    teks: "Di puncak, kamu meniup peluit. Kali ini suaranya jernih dan panjang. Kristal-kristal pecah menjadi debu cahaya, dan dari lembah terdengar lolongan pertama, lalu yang kedua, lalu seluruh kawanan bernyanyi. Angin utara bangun dan menari di atas salju. Kincir desa berputar lagi, dan Sela mengangkat lenteranya tinggi-tinggi sebagai salam.",
+    judulEn: "The first howl",
+    teksEn: "On the peak you blew the whistle. This time its sound was clear and long. The crystals broke into dust of light, and from the valley came the first howl, then a second, then the whole pack singing. The north wind woke and danced across the snow. The village windmills turned again, and Sela raised her lantern high in greeting.",
+    tugas: "Kembalikan pecahan terakhir ke altar agar angin tidak pernah diam lagi.",
+    tugasEn: "Return the last shard to the altar so the wind is never silent again.",
   },
 ];

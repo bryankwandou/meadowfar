@@ -142,6 +142,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: "craft-1", nama: "Juru masak kecil", namaEn: "Little cook", keterangan: "Gabungkan bahan menjadi item baru", keteranganEn: "Combine ingredients into a new item" },
   { id: "forage-50", nama: "Pengumpul ulung", namaEn: "Keen forager", keterangan: "Petik 50 bahan dari alam", keteranganEn: "Gather 50 ingredients in the wild" },
   { id: "story-24", nama: "Dua penjaga", namaEn: "Two keepers", keterangan: "Selesaikan babak kedua kisah Sela", keteranganEn: "Finish the second act, the story of Sela" },
+  { id: "story-36", nama: "Nyanyian angin", namaEn: "Song of the wind", keterangan: "Selesaikan babak ketiga, kisah para serigala", keteranganEn: "Finish the third act, the story of the wolves" },
 ];
 
 export type GameMode = "casual" | "adventure";
