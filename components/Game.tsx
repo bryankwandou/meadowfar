@@ -33,7 +33,7 @@ import { UI, QUEST_NOUN_NAMES, detectLang, saveLang, pick, type Lang } from "@/l
 import { COSMETICS, ITEMS, MAX_HEARTS, RECIPES, canCraft, type Slot } from "@/lib/catalog";
 import { hash2, terrainHeight, biomeAt, forestAt, fbm, addPad, removePad, mulberry32, WATER_Y, type Biome } from "@/lib/game/terrain";
 import { CHUNK, HOME, REGION, SITES, VILLAGE0, dungeonName, dungeonPos, nearLandmark, villagePos, villageName } from "@/lib/game/world";
-import { buildAnimal, herdFor, wander, animateAnimal, SPECIES, type Animal } from "@/lib/game/wildlife";
+import { buildAnimal, herdFor, wander, animateAnimal, preloadAnimalModels, SPECIES, type Animal } from "@/lib/game/wildlife";
 import MiniMap, { type MapState } from "./game/MiniMap";
 import { Physics, STEP } from "@/lib/game/physics";
 import { buildAvatar, type Avatar } from "@/lib/game/avatar";
@@ -645,6 +645,7 @@ export default function Game() {
 
     // wildlife lives per chunk (see buildChunk); forage pickups too
     const animals = new Set<Animal>();
+    preloadAnimalModels();
     const forage: { mesh: THREE.Object3D; item: string; key: string; chunk: string }[] = [];
     const picked = new Set<string>();
     const ridden = new Set<string>();
@@ -2219,7 +2220,8 @@ float gNoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
             animals.forEach((a) => {
               if (a.owner === `c:${key}` && a !== mount) {
                 scene.remove(a.group);
-                a.group.traverse((o) => o instanceof THREE.Mesh && o.geometry.dispose());
+                a.group.traverse((o) => o instanceof THREE.Mesh && !o.userData.shared && o.geometry.dispose());
+                a.mixer?.stopAllAction();
                 animals.delete(a);
               }
             });
