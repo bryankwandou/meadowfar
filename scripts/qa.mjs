@@ -174,7 +174,7 @@ const state = (page) => page.evaluate(() => {
 
   // wardrobe + shop + inventory
   await page.getByTestId("hud-menu").click();
-  await page.getByTestId("tab-wardrobe").click();
+  await page.getByTestId("tab-wardrobe").click({ noWaitAfter: true });
   await sleep(1200);
   await page.screenshot({ path: path.join(OUT, "06-wardrobe.png") });
   const coinsBefore = await page.getByTestId("hud-coins").innerText().catch(() => "");

@@ -782,7 +782,22 @@ export default function Game() {
     const pineMat = new THREE.MeshStandardMaterial({ color: 0x2a6e4f, flatShading: true });
     const snowCapMat = new THREE.MeshStandardMaterial({ color: 0xf2f7fb, flatShading: true });
     const cactusMat = new THREE.MeshStandardMaterial({ color: 0x3f9e58, roughness: 0.7 });
-    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x7a4d2b, roughness: 0.95 });
+    // Photo-scanned CC0 textures from Poly Haven (public/textures). They load
+    // in the background; until then the procedural colours below are used.
+    const texLoader = new THREE.TextureLoader();
+    const photoTex = (name: string) => {
+      const t = texLoader.load(`/textures/${name}_diff.jpg`);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+      return t;
+    };
+    const tGrass = photoTex("aerial_grass_rock");
+    const tSoil = photoTex("forest_ground_04");
+    const tRock = photoTex("rock_face");
+    const tBark = photoTex("bark_willow_02");
+    tBark.repeat.set(1, 2);
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0xb08a6a, map: tBark, roughness: 0.95 });
     const flowerMats = [0xffffff, 0xffd447, 0xff8fb3, 0xb28fff, 0xff6b4a].map((c) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.12 }));
     const stemMat = new THREE.MeshStandardMaterial({ color: 0x3f8f3a });
     const rockMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, flatShading: true, roughness: 0.95 });
@@ -792,6 +807,9 @@ export default function Game() {
     // colour (soil patches, grass tufts), steep slopes turn to rock, and a
     // micro-normal perturbation gives the ground a lit, grainy relief
     groundMat.onBeforeCompile = (sh) => {
+      sh.uniforms.tGrass = { value: tGrass };
+      sh.uniforms.tSoil = { value: tSoil };
+      sh.uniforms.tRock = { value: tRock };
       sh.vertexShader = sh.vertexShader
         .replace("#include <common>", "#include <common>\nvarying vec3 vWPos;\nvarying vec3 vWNorm;")
         .replace(
@@ -804,6 +822,10 @@ export default function Game() {
           `#include <common>
 varying vec3 vWPos;
 varying vec3 vWNorm;
+uniform sampler2D tGrass;
+uniform sampler2D tSoil;
+uniform sampler2D tRock;
+float gLum(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
 float gHash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float gNoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
   return mix(mix(gHash(i), gHash(i+vec2(1.,0.)), f.x), mix(gHash(i+vec2(0.,1.)), gHash(i+vec2(1.,1.)), f.x), f.y); }`
@@ -817,8 +839,35 @@ float gNoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
   float n3 = gNoise(vWPos.xz * 3.1);
   diffuseColor.rgb *= 0.82 + n1 * 0.18 + n2 * 0.12 + n3 * 0.08;
   float slope = 1.0 - clamp(vWNorm.y, 0.0, 1.0);
-  vec3 rock = vec3(0.47, 0.45, 0.42) * (0.8 + n2 * 0.35);
+  // rock: warm/cool strata that follow height (wobbled so the bands are not
+  // ruler-straight), plus dark ridged cracks
+  float band = vWPos.y * 1.3 + gNoise(vWPos.xz * 0.35) * 2.5;
+  float strata = 0.5 + 0.5 * sin(band);
+  vec3 rock = mix(vec3(0.42, 0.40, 0.38), vec3(0.56, 0.52, 0.46), strata) * (0.8 + n2 * 0.3);
+  float crack = 1.0 - abs(gNoise(vWPos.xz * 1.7 + vWPos.y * 0.9) * 2.0 - 1.0);
+  rock *= 1.0 - smoothstep(0.9, 0.99, crack) * 0.45;
   diffuseColor.rgb = mix(diffuseColor.rgb, rock, smoothstep(0.28, 0.5, slope));
+  // scattered pebbles and bare-soil specks on flat ground
+  // (round, soft-edged dots inside each cell, never full square cells)
+  vec2 pc = vWPos.xz * 6.0;
+  float peb = gHash(floor(pc));
+  float pd = length(fract(pc) - 0.5);
+  float flat_ = 1.0 - smoothstep(0.15, 0.3, slope);
+  float pebMask = step(0.985, peb) * (1.0 - smoothstep(0.18, 0.3, pd));
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.55, 0.5, 0.44) * (0.85 + n3 * 0.3), pebMask * flat_ * 0.6);
+  // photo detail: grass and forest-floor luminance modulate the biome tint
+  // (so snow and sand keep their colour); slopes get tri-planar rock photo
+  vec2 uv = vWPos.xz * 0.25;
+  float gd = gLum(texture2D(tGrass, uv).rgb) / 0.32;
+  float sd = gLum(texture2D(tSoil, uv * 0.8 + 0.37).rgb) / 0.30;
+  float detail = mix(gd, sd, smoothstep(0.35, 0.75, n1));
+  diffuseColor.rgb *= mix(1.0, clamp(detail, 0.45, 1.6), 0.65 * flat_);
+  vec3 bw = pow(abs(vWNorm), vec3(4.0));
+  bw /= (bw.x + bw.y + bw.z);
+  vec3 rp = texture2D(tRock, vWPos.zy * 0.12).rgb * bw.x
+          + texture2D(tRock, vWPos.xz * 0.12).rgb * bw.y
+          + texture2D(tRock, vWPos.xy * 0.12).rgb * bw.z;
+  diffuseColor.rgb = mix(diffuseColor.rgb, rp * 1.1, smoothstep(0.3, 0.55, slope) * 0.85);
 }`
         )
         .replace(
@@ -1748,6 +1797,7 @@ float gNoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
     // ---------- main loop state ----------
     let camYaw = 0;
     let camPitch = 0.32;
+    let menuFrame = 0;
     let view: "tpp" | "fpp" = controlsRef.current?.view ?? "tpp";
     let walk = 0;
     let vy = 0;
@@ -2661,8 +2711,13 @@ float gNoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
       }
 
       updateSparks(dt);
-      if (composer) composer.render();
-      else renderer.render(activeScene, camera);
+      // Behind an open menu the world is only a backdrop: redraw it about
+      // twice a second so weak GPUs can spend their time on the wardrobe preview.
+      menuFrame = menuOpenRef.current && !captureRef.current ? (menuFrame + 1) % 30 : 0;
+      if (menuFrame <= 1) {
+        if (composer) composer.render();
+        else renderer.render(activeScene, camera);
+      }
 
       if (captureRef.current) {
         captureRef.current = false;
