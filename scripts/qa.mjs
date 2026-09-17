@@ -46,6 +46,27 @@ async function openGame(ctx, { hero = "girl", mode = "casual", gfx = "medium" } 
   await sleep(2500);
   return page;
 }
+// Hold a key until the game reports progress (or give up). Software WebGL runs
+// at a few frames per second, so fixed wall-clock holds starve the game loop.
+async function holdUntil(page, key, done, maxMs = 15000) {
+  await page.keyboard.down(key);
+  const t0 = Date.now();
+  while (Date.now() - t0 < maxMs && !done(await state(page))) await sleep(250);
+  await page.keyboard.up(key);
+}
+async function waitFor(page, done, maxMs = 15000) {
+  const t0 = Date.now();
+  let st = await state(page);
+  while (Date.now() - t0 < maxMs && !done(st)) {
+    await sleep(150);
+    st = await state(page);
+  }
+  return st;
+}
+const box = (page, id) => page.evaluate((id) => {
+  const r = document.querySelector(`[data-testid="${id}"]`).getBoundingClientRect();
+  return { x: r.x, y: r.y, width: r.width, height: r.height };
+}, id);
 const state = (page) => page.evaluate(() => {
   const s = window.__meadowfar();
   const { teleport, setYaw, enter, exit, ...rest } = s;
@@ -63,14 +84,10 @@ const state = (page) => page.evaluate(() => {
   // W moves away from the camera (camYaw 0 => forward is -z)
   await page.evaluate(() => window.__meadowfar().setYaw(0));
   const a = await state(page);
-  await page.keyboard.down("w");
-  await sleep(900);
-  await page.keyboard.up("w");
+  await holdUntil(page, "w", (st) => st.z < a.z - 2);
   const b = await state(page);
   check("keyboard W walks forward (away from camera), not inverted", b.z < a.z - 2, `dz=${(b.z - a.z).toFixed(2)}`);
-  await page.keyboard.down("d");
-  await sleep(700);
-  await page.keyboard.up("d");
+  await holdUntil(page, "d", (st) => st.x > b.x + 1.5);
   const c = await state(page);
   check("keyboard D strafes right", c.x > b.x + 1.5, `dx=${(c.x - b.x).toFixed(2)}`);
 
@@ -110,9 +127,7 @@ const state = (page) => page.evaluate(() => {
     window.__meadowfar().setYaw(Math.atan2(d[0], d[1]));
   }, { hx, hz, vx: village.x, vz: village.z });
   await sleep(600);
-  await page.keyboard.down("w");
-  await sleep(3200);
-  await page.keyboard.up("w");
+  await holdUntil(page, "w", (st) => st.inside === true, 20000);
   await sleep(500);
   const inH = await state(page);
   check("walk through a doorway into a cottage (indoors detected)", inH.inside === true, `pos=(${inH.x.toFixed(1)},${inH.y.toFixed(1)},${inH.z.toFixed(1)})`);
@@ -162,9 +177,7 @@ const state = (page) => page.evaluate(() => {
   await sleep(800);
   await page.evaluate(() => window.__meadowfar().setYaw(0));
   const r0 = await state(page);
-  await page.keyboard.down("w");
-  await sleep(4000);
-  await page.keyboard.up("w");
+  await holdUntil(page, "w", (st) => st.z < r0.z - 2);
   const r1 = await state(page);
   await page.screenshot({ path: path.join(OUT, "16-riding.png") });
   check("ride a wild animal and move on it", !!rideSpecies && r1.mounted === rideSpecies && r1.z < r0.z - 2, `species=${rideSpecies} animals=${r1.animals} dz=${(r1.z - r0.z).toFixed(1)}`);
@@ -223,7 +236,7 @@ for (const [name, vp] of [["landscape", { width: 844, height: 390 }], ["portrait
   await page.evaluate(() => window.__meadowfar().setYaw(0));
   const a = await state(page);
   // drag the stick up with a real touch-like pointer
-  const zone = await page.getByTestId("stick-zone").boundingBox();
+  const zone = await box(page, "stick-zone");
   const sx = zone.x + zone.width * 0.35, sy = zone.y + zone.height * 0.7;
   const cdp = await ctx.newCDPSession(page);
   const touch = (type, x, y) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y, id: 1 }] });
@@ -237,14 +250,13 @@ for (const [name, vp] of [["landscape", { width: 844, height: 390 }], ["portrait
   check(`phone ${name}: stick pushed UP walks FORWARD (not inverted)`, b.z < a.z - 2, `dz=${(b.z - a.z).toFixed(2)}`);
   // jump button
   const y0 = (await state(page)).y;
-  const jb = await page.getByTestId("btn-jump").boundingBox();
+  const jb = await box(page, "btn-jump");
   await touch("touchStart", jb.x + jb.width / 2, jb.y + jb.height / 2);
-  await sleep(200);
-  const y1 = (await state(page)).y;
+  const y1 = (await waitFor(page, (st) => st.y > y0 + 0.3, 8000)).y;
   await touch("touchEnd", 0, 0);
   check(`phone ${name}: jump button works`, y1 > y0 + 0.3, `dy=${(y1 - y0).toFixed(2)}`);
   // look drag on right half turns camera right
-  const lz = await page.getByTestId("look-zone").boundingBox();
+  const lz = await box(page, "look-zone");
   const yawA = (await state(page)).camYaw;
   const lx = lz.x + lz.width * 0.3, ly = lz.y + lz.height * 0.3;
   await touch("touchStart", lx, ly);
@@ -277,13 +289,13 @@ for (const [name, vp] of [["landscape", { width: 844, height: 390 }], ["portrait
   await page.evaluate(() => window.__meadowfar().setYaw(0));
   const a = await state(page);
   await page.evaluate(() => (window.__pad.axes[1] = -1)); // left stick pushed UP
-  await sleep(900);
+  await waitFor(page, (st) => st.z < a.z - 2);
   await page.evaluate(() => (window.__pad.axes[1] = 0));
   const b = await state(page);
   check("gamepad left stick UP walks forward (not inverted)", b.z < a.z - 2, `dz=${(b.z - a.z).toFixed(2)}`);
   const yawA = b.camYaw;
   await page.evaluate(() => (window.__pad.axes[2] = 1)); // right stick RIGHT
-  await sleep(500);
+  await waitFor(page, (st) => st.camYaw < yawA - 0.15);
   await page.evaluate(() => (window.__pad.axes[2] = 0));
   const yawB = (await state(page)).camYaw;
   check("gamepad right stick RIGHT turns camera right", yawB < yawA - 0.15, `yaw ${yawA.toFixed(2)} -> ${yawB.toFixed(2)}`);
