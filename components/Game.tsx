@@ -1736,6 +1736,14 @@ float gNoise(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
         if (pk.kind === "chest") pk.taken = false;
       });
       setZoneName(id);
+      // an arena should never open empty: three slimes are waiting at the edge
+      const area = it.slimeArea;
+      if (area) {
+        for (let i = 0; i < 3; i++) {
+          const a = (i / 3) * Math.PI * 2 + 0.5;
+          critters.spawn(area.x + Math.cos(a) * area.r * 0.7, 0, area.z + Math.sin(a) * area.r * 0.7);
+        }
+      }
       if (id === "cave") award("cave-1");
       chime(520, "triangle", 0.8, 0.12);
       chime(780, "triangle", 0.9, 0.08);
